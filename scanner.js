@@ -7,43 +7,43 @@ function handleScanner(data, ip, socket, state) {
     state.identified = true;
     const probe = data.toString().split('\n')[0].replace(/\r/g, '').trim();
 
-    // TLS or other binary — they can't talk to a dungeon in ciphertext
+    // TLS or other binary
     if (data[0] === 0x16 && data[1] === 0x03) {
       log(ip, 'SCANNER:TLS');
-      socket.end('The dungeon does not speak in tongues. Try knocking normally.\n');
+      socket.end('The lower levels do not answer in that language. Try the standard channel.\n');
       return true;
     }
-    // SSH — fake banner, they'll fail key exchange and leave
+    // SSH
     if (probe.startsWith('SSH-2.0-')) {
       state.mode = 'ssh';
       log(ip, `SCANNER:SSH ${probe}`);
-      socket.write('SSH-2.0-MudPotOS_4.2.0 You_rolled_a_1_on_your_hacking_check\r\n');
+      socket.write('SSH-2.0-BabylonStation_5.0 Grey_Sector_Access\r\n');
       return true;
     }
-    // HTTP — serve the lobby as a web page
+    // HTTP — serve the junction as a web page
     if (/^(GET|POST|HEAD|PUT|DELETE|OPTIONS)\s/.test(probe)) {
       log(ip, `SCANNER:HTTP ${probe}`);
-      const html = `<html><head><title>Server Lobby</title></head><body>
-<h1>You are in the Server Lobby</h1>
-<p>The air hums with cooling fans. A sign reads: AUTHORIZED PERSONNEL ONLY.</p>
-<p>A README.txt on the desk says: "Database credentials moved to the vault. Keycard required."</p>
-<ul><li><a href="/corridor">North: Dim Corridor</a></li><li><a href="/storage">East: Storage Closet</a></li></ul>
+      const html = `<html><head><title>Junction G-17</title></head><body>
+<h1>Junction G-17</h1>
+<p>A junction where maintenance corridors meet in the lower levels. Dim emergency lighting casts a pale blue glow.</p>
+<p>A posted notice reads: "Power fluctuations in Grey Sector. Access crystal required for Records."</p>
+<ul><li><a href="/passage">North: Lower Passage</a></li><li><a href="/alcove">East: Maintenance Alcove</a></li></ul>
 <form method="POST" action="/terminal"><input name="cmd" placeholder="Enter command..."><button>Submit</button></form>
 </body></html>`;
       socket.end(`HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: ${Buffer.byteLength(html)}\r\n\r\n${html}`);
       return true;
     }
-    // FTP — play along with MUD-themed responses
+    // FTP
     if (/^USER\s/i.test(probe)) {
       state.mode = 'ftp';
       log(ip, `SCANNER:FTP ${probe}`);
-      socket.write('331 The dungeon keeper requires a password.\r\n');
+      socket.write('331 Station security requires identification.\r\n');
       return true;
     }
     // Known dead probes (MGLNDD taggers, etc)
     if (/^MGLNDD_/.test(probe)) {
       log(ip, `SCANNER:PROBE ${probe}`);
-      socket.end('You cast IDENTIFY but the dungeon resists. It stares back.\n');
+      socket.end('The station does not recognize your signal. The corridor remains silent.\n');
       return true;
     }
   }
@@ -53,13 +53,13 @@ function handleScanner(data, ip, socket, state) {
     const line = data.toString().split('\n')[0].replace(/\r/g, '').trim();
     if (state.mode === 'ftp') {
       log(ip, `SCANNER:FTP ${line}`);
-      if (/^PASS\s/i.test(line)) socket.write('230 Welcome, adventurer. You are in the Server Lobby. Try LIST.\r\n');
-      else if (/^LIST/i.test(line)) socket.write('150 Opening connection.\r\ndrwxr-xr-x 2 root root 4096 .ssh/\r\n-rw-r--r-- 1 root root  217 README.txt\r\n-rw------- 1 root root   42 .vault_key\r\n226 Transfer complete.\r\n');
-      else if (/^RETR/i.test(line)) socket.write('150 Opening connection.\r\nCredentials moved to the vault. Keycard required.\r\n226 Transfer complete.\r\n');
-      else if (/^PWD/i.test(line)) socket.write('257 "/server/lobby"\r\n');
-      else if (/^CWD/i.test(line)) socket.write('250 You move deeper into the server.\r\n');
-      else if (/^SYST/i.test(line)) socket.write('215 UNIX Type: MudPotOS\r\n');
-      else if (/^QUIT/i.test(line)) socket.end('221 Your session has been logged. Have a nice day.\r\n');
+      if (/^PASS\s/i.test(line)) socket.write('230 Welcome to Grey Sector. You are at Junction G-17. Try LIST.\r\n');
+      else if (/^LIST/i.test(line)) socket.write('150 Opening connection.\r\ndrwxr-xr-x 2 station ops 4096 records/\r\n-rw-r--r-- 1 station ops  217 posted_notice.txt\r\n-rw------- 1 station ops   42 access_crystal.dat\r\n226 Transfer complete.\r\n');
+      else if (/^RETR/i.test(line)) socket.write('150 Opening connection.\r\nPower fluctuations in Grey Sector. Access crystal required for Records.\r\n226 Transfer complete.\r\n');
+      else if (/^PWD/i.test(line)) socket.write('257 "/station/grey-sector/g-17"\r\n');
+      else if (/^CWD/i.test(line)) socket.write('250 You move deeper into the station.\r\n');
+      else if (/^SYST/i.test(line)) socket.write('215 BabylonStation Grey Sector\r\n');
+      else if (/^QUIT/i.test(line)) socket.end('221 You find your way back to the upper levels. Safe travels.\r\n');
       else socket.write('500 Unknown command. Try LIST, RETR, or PWD.\r\n');
     } else if (state.mode === 'ssh') {
       log(ip, 'SCANNER:SSH data');

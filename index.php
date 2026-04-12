@@ -123,8 +123,8 @@ $recentSessions = array_slice(array_reverse($sessions), 0, 20);
 
 // Room display names
 $roomNames = [
-    'lobby' => 'Lobby', 'storage' => 'Storage', 'corridor' => 'Corridor',
-    'archive' => 'Archive', 'lab' => 'Lab', 'vault_door' => 'Vault Door', 'vault' => 'Vault'
+    'lobby' => 'Junction', 'storage' => 'Alcove', 'corridor' => 'Passage',
+    'archive' => 'Records', 'lab' => 'Chamber', 'vault_door' => 'Threshold', 'vault' => 'Sanctum'
 ];
 
 function formatDuration($secs) {
@@ -147,7 +147,7 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MudPot // Honeypot Dashboard</title>
+    <title>Grey Sector // Station Monitor</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -292,8 +292,8 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 <body>
 <div class="container">
     <header>
-        <h1>$ mudpot --status</h1>
-        <span class="subtitle">honeypot telnet MUD // trapping scanners since 2026</span>
+        <h1>$ grey-sector --status</h1>
+        <span class="subtitle">babylon station // grey sector monitor</span>
     </header>
 
     <h2>Overview</h2>
@@ -312,11 +312,11 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
         </div>
         <div class="stat-box">
             <div class="stat-value"><?= formatDuration($totalTime) ?></div>
-            <div class="stat-label">total time wasted</div>
+            <div class="stat-label">total time exploring</div>
         </div>
         <div class="stat-box">
             <div class="stat-value green"><?= $vaultReached ?></div>
-            <div class="stat-label">reached the vault</div>
+            <div class="stat-label">reached the sanctum</div>
         </div>
         <div class="stat-box">
             <div class="stat-value red"><?= $kicked ?></div>
@@ -401,7 +401,7 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
     </table>
 
     <footer>
-        <p>mudpot // <a href="https://transparentsource.org">transparentsource.org</a></p>
+        <p>grey sector // <a href="https://transparentsource.org">transparentsource.org</a></p>
     </footer>
 </div>
 

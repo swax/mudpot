@@ -1,6 +1,16 @@
 const log = require('./log');
 const rooms = require('./rooms');
 
+function tryUnlock(session, room, dir) {
+  if (room.puzzle && !room.puzzleSolved) {
+    session.inputMode = 'puzzle';
+    return 'puzzle';
+  }
+  room.exits[dir] = room.locked[dir];
+  delete room.locked[dir];
+  return 'unlocked';
+}
+
 function createSession(ip) {
   return {
     room: 'lobby',
@@ -88,25 +98,17 @@ function handleInput(session, raw) {
       // Check locked exits
       if (room.locked && room.locked[dir]) {
         if (room.lockItem && session.inventory.includes(room.lockItem)) {
-          // Unlock it
-          room.exits[dir] = room.locked[dir];
-          delete room.locked[dir];
           const unlockText = room.unlockMsg || 'You unlock the way forward.';
-          // If there's also a puzzle, enter puzzle mode
-          if (room.puzzle && !room.puzzleSolved) {
-            session.inputMode = 'puzzle';
+          const dest = room.locked[dir];
+          const result = tryUnlock(session, room, dir);
+          if (result === 'puzzle') {
             return `\n${unlockText}\n\nThe keypad awaits your input.\n${room.puzzlePrompt}`;
           }
-          session.room = room.exits[dir];
+          session.room = dest;
           log(session.ip, `MOVED to ${session.room}`);
           return `\n${unlockText}\n` + look(session);
         }
         return '\nThe way is locked. You need something to get through.\n\n';
-      }
-
-      // Check for puzzle gate
-      if (room.puzzle && !room.puzzleSolved && room.locked && Object.values(room.locked).length > 0) {
-        // Already handled above
       }
 
       if (room.exits && room.exits[dir]) {
@@ -178,11 +180,9 @@ function handleInput(session, raw) {
       if (session.inventory.includes(arg)) {
         if (room.lockItem === arg && room.locked) {
           const dir = Object.keys(room.locked)[0];
-          room.exits[dir] = room.locked[dir];
-          delete room.locked[dir];
           const unlockText = room.unlockMsg || 'You use the ' + arg + '. The way opens.';
-          if (room.puzzle && !room.puzzleSolved) {
-            session.inputMode = 'puzzle';
+          const result = tryUnlock(session, room, dir);
+          if (result === 'puzzle') {
             return `\n${unlockText}\n\nThe keypad awaits your input.\n${room.puzzlePrompt}`;
           }
           return `\n\x1b[1;32m${unlockText}\x1b[0m\n\n`;
@@ -204,7 +204,7 @@ function handleInput(session, raw) {
     case 'pwd':
       return '\n/honeypot/maze/you_are_here\n\n';
     case 'whoami':
-      return '\na]visitor (uid=1337)\n\n';
+      return '\nvisitor (uid=1337)\n\n';
     case 'id':
       return '\nuid=1337(visitor) gid=1337(guests) groups=1337(guests),0(definitely_not_root)\n\n';
     case 'uname':

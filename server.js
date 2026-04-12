@@ -6,15 +6,15 @@ const handleScanner = require('./scanner');
 const BANNER = `
 \x1b[1;32m╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║   ███╗   ███╗██╗   ██╗██████╗ ██████╗  ██████╗ ████████╗    ║
-║   ████╗ ████║██║   ██║██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝    ║
-║   ██╔████╔██║██║   ██║██║  ██║██████╔╝██║   ██║   ██║       ║
-║   ██║╚██╔╝██║██║   ██║██║  ██║██╔═══╝ ██║   ██║   ██║       ║
-║   ██║ ╚═╝ ██║╚██████╔╝██████╔╝██║     ╚██████╔╝   ██║       ║
-║   ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚═╝      ╚═════╝    ╚═╝       ║
+║   ███╗   ███╗██╗   ██╗██████╗ ██████╗  ██████╗ ████████╗     ║
+║   ████╗ ████║██║   ██║██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝     ║
+║   ██╔████╔██║██║   ██║██║  ██║██████╔╝██║   ██║   ██║        ║
+║   ██║╚██╔╝██║██║   ██║██║  ██║██╔═══╝ ██║   ██║   ██║        ║
+║   ██║ ╚═╝ ██║╚██████╔╝██████╔╝██║     ╚██████╔╝   ██║        ║
+║   ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚═╝      ╚═════╝    ╚═╝        ║
 ║                                                              ║
 ║         Welcome to the server. You look tired.               ║
-║         Why not stay a while and explore?                     ║
+║         Why not stay a while and explore?                    ║
 ║                                                              ║
 ║         Type 'help' for commands.                            ║
 ║                                                              ║
@@ -94,7 +94,7 @@ const server = net.createServer((socket) => {
       }
 
       // Random delay 500-1500ms — wastes time and feels realistic
-      var delay = 500 + Math.floor(Math.random() * 1000);
+      const delay = 500 + Math.floor(Math.random() * 1000);
       setTimeout(function() {
         if (socket.destroyed) return;
         socket.write(response);
@@ -119,7 +119,6 @@ const server = net.createServer((socket) => {
   });
 
   socket.on('error', (err) => {
-    connectionCount--;
     log(ip, `ERROR: ${err.message}`);
   });
 });

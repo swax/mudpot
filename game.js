@@ -44,7 +44,7 @@ function handleInput(session, raw) {
   // Puzzle input mode
   if (session.inputMode === 'puzzle') {
     const room = session.rooms[session.room];
-    if (input === room.puzzleAnswer) {
+    if (input.replace(/\s+/g, '') === room.puzzleAnswer) {
       room.puzzleSolved = true;
       // Unlock the door
       const dir = Object.keys(room.locked)[0];
@@ -138,6 +138,15 @@ function handleInput(session, raw) {
       );
       if (itemKey) {
         log(session.ip, `READ ${itemKey}`);
+        if (session.room === 'vault' && itemKey === 'data_crystal') {
+          log(session.ip, 'VICTORY');
+          return 'VICTORY\n\x1b[0;37m' + room.items[itemKey] + '\x1b[0m\n' +
+            '\n\x1b[1;36m══════════════════════════════════════════════\x1b[0m\n' +
+            '\n\x1b[1;37mYou have reached the heart of Grey Sector.\x1b[0m\n' +
+            '\x1b[0;36mFew have made it this far. Whatever truth was\n' +
+            'hidden here, you now carry it with you.\x1b[0m\n' +
+            '\n\x1b[1;36m══════════════════════════════════════════════\x1b[0m\n\n';
+        }
         return `\n\x1b[0;37m${room.items[itemKey]}\x1b[0m\n\n`;
       }
       // Check inventory
@@ -178,7 +187,7 @@ function handleInput(session, raw) {
     case 'use': {
       const room = session.rooms[session.room];
       if (session.inventory.includes(arg)) {
-        if (room.lockItem === arg && room.locked) {
+        if (room.lockItem === arg && room.locked && Object.keys(room.locked).length > 0) {
           const dir = Object.keys(room.locked)[0];
           const unlockText = room.unlockMsg || 'You use the ' + arg + '. The way opens.';
           const result = tryUnlock(session, room, dir);

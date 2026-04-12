@@ -18,11 +18,11 @@ const BANNER = `
 ╚══════════════════════════════════════════════════════════════╝\x1b[0m
 `;
 
-const PORT = process.env.MUDPOT_PORT || 2222;
+const PORTS = (process.env.MUDPOT_PORT || '2222').split(',').map(p => parseInt(p.trim(), 10));
 const MAX_CONNECTIONS = 20;
 let connectionCount = 0;
 
-const server = net.createServer((socket) => {
+function onConnection(socket) {
   if (connectionCount >= MAX_CONNECTIONS) {
     socket.end('The lower levels are too crowded tonight. Try again later.\n');
     return;
@@ -30,10 +30,11 @@ const server = net.createServer((socket) => {
   connectionCount++;
 
   const ip = (socket.remoteAddress || 'unknown').replace('::ffff:', '');
+  const port = socket.localPort;
   const session = createSession(ip);
   const scannerState = { identified: false, mode: null };
 
-  log(ip, 'CONNECTED');
+  log(ip, `CONNECTED port=${port}`);
 
   socket.write(BANNER);
   socket.write(look(session));
@@ -51,6 +52,13 @@ const server = net.createServer((socket) => {
   socket.on('data', (data) => {
     if (handleScanner(data, ip, socket, scannerState)) return;
 
+    // Handle Ctrl+C (raw 0x03), Ctrl+D (0x04), or telnet IAC IP (0xFF 0xF4)
+    if (data.includes(0x03) || data.includes(0x04) || data.includes(0xF4)) {
+      log(ip, 'QUIT');
+      socket.end('\nYou find your way back to the upper levels. The station hums quietly behind you.\n');
+      return;
+    }
+
     buffer += data.toString();
 
     // Drop connection if buffer grows too large (no newline flood)
@@ -64,6 +72,13 @@ const server = net.createServer((socket) => {
     while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
       let line = buffer.substring(0, newlineIdx).replace(/\r/g, '');
       buffer = buffer.substring(newlineIdx + 1);
+
+      // Handle Ctrl+C that arrived as part of a line
+      if (line.includes('\x03')) {
+        log(ip, 'QUIT');
+        socket.end('\nYou find your way back to the upper levels. The station hums quietly behind you.\n');
+        return;
+      }
 
       // Truncate long lines
       if (line.length > MAX_LINE) {
@@ -127,9 +142,11 @@ const server = net.createServer((socket) => {
   socket.on('error', (err) => {
     log(ip, `ERROR: ${err.message}`);
   });
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`Grey Sector listening on port ${PORT}`);
-  log('SYSTEM', `Server started on port ${PORT}`);
+PORTS.forEach(port => {
+  net.createServer(onConnection).listen(port, () => {
+    console.log(`Grey Sector listening on port ${port}`);
+    log('SYSTEM', `Server started on port ${port}`);
+  });
 });

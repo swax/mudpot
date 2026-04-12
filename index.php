@@ -27,7 +27,8 @@ foreach ($lines as $line) {
     if ($ip === 'SYSTEM') continue;
     if ($ip === '::1') continue; // skip localhost test sessions
 
-    if ($msg === 'CONNECTED') {
+    if (preg_match('/^CONNECTED(?: port=(\d+))?$/', $msg, $connMatch)) {
+        $port = $connMatch[1] ?? null;
         // Finalize any existing session for this IP to handle overlapping connections
         if (isset($current[$ip])) {
             $sess = $current[$ip];
@@ -40,6 +41,7 @@ foreach ($lines as $line) {
         }
         $current[$ip] = [
             'ip' => $ip,
+            'port' => $port,
             'start' => $ts,
             'end' => $ts,
             'commands' => [],
@@ -128,6 +130,18 @@ foreach ($sessions as $s) {
 arsort($allCmds);
 $topCmds = array_slice($allCmds, 0, 15, true);
 
+// Port distribution
+$portDist = [];
+foreach ($sessions as $s) {
+    $p = $s['port'] ?: 'unknown';
+    $portDist[$p] = ($portDist[$p] ?? 0) + 1;
+}
+arsort($portDist);
+
+// Listening ports from env
+$listeningPorts = explode(',', getenv('MUDPOT_PORT') ?: '2222');
+$listeningPorts = array_map('trim', $listeningPorts);
+
 // Recent sessions (last 20)
 $recentSessions = array_slice(array_reverse($sessions), 0, 20);
 
@@ -150,7 +164,19 @@ function depthBar($room, $roomDepth) {
     return str_repeat('█', $filled) . str_repeat('░', $maxDepth - $depth);
 }
 
-function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+function escHtml($s) {
+    $s = (string)$s;
+    $out = '';
+    for ($i = 0; $i < strlen($s); $i++) {
+        $c = ord($s[$i]);
+        if ($c < 0x20 || $c >= 0x7F) {
+            $out .= '<span style="color:#a44;font-size:0.8em">[' . sprintf('%02X', $c) . ']</span>';
+        } else {
+            $out .= htmlspecialchars($s[$i], ENT_QUOTES, 'UTF-8');
+        }
+    }
+    return $out;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -307,6 +333,7 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
     </header>
 
     <h2>Overview</h2>
+    <p style="color:#666; margin-bottom:10px;">listening on ports: <?= implode(', ', $listeningPorts) ?></p>
     <div class="stats-grid">
         <div class="stat-box">
             <div class="stat-value"><?= $totalSessions ?></div>
@@ -376,13 +403,27 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
         <?php endforeach; ?>
     </table>
 
+    <h2>Port Traffic</h2>
+    <p style="color:#666; margin-bottom:10px;">Sessions by connection port</p>
+    <?php
+    $maxPort = max(array_values($portDist) ?: [1]);
+    foreach ($portDist as $p => $count):
+        $width = $maxPort > 0 ? max(($count / $maxPort) * 100, 1) : 1;
+    ?>
+    <div class="bar-row">
+        <span class="bar-label"><?= escHtml($p) ?></span>
+        <div class="bar-fill" style="width:<?= $width ?>%"><?= $count ?></div>
+    </div>
+    <?php endforeach; ?>
+
     <h2>Recent Sessions</h2>
     <table>
-        <tr><th>time</th><th>ip</th><th>duration</th><th>cmds</th><th>furthest</th><th>status</th><th></th></tr>
+        <tr><th>time</th><th>ip</th><th>port</th><th>duration</th><th>cmds</th><th>furthest</th><th>status</th><th></th></tr>
         <?php foreach ($recentSessions as $i => $s): ?>
         <tr onclick="toggleCmds(<?= $i ?>)" class="toggle">
             <td><?= date('M j H:i', strtotime($s['start'])) ?></td>
             <td class="ip"><?= escHtml($s['ip']) ?></td>
+            <td><?= escHtml($s['port'] ?? '-') ?></td>
             <td><?= formatDuration($s['duration']) ?></td>
             <td><?= $s['cmd_count'] ?></td>
             <td class="<?= $s['reached_vault'] ? 'vault' : 'room' ?>"><?= $roomNames[$s['furthest']] ?? $s['furthest'] ?></td>
@@ -396,7 +437,7 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
             <td class="toggle">[+]</td>
         </tr>
         <tr class="session-cmds" id="cmds-<?= $i ?>">
-            <td colspan="7">
+            <td colspan="8">
                 <?php foreach ($s['commands'] as $c): ?>
                 <div class="cmd-line">
                     <span class="cmd-room">[<?= escHtml($c['room']) ?>]</span>

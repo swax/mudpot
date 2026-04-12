@@ -7,17 +7,17 @@ function handleScanner(data, ip, socket, state) {
     state.identified = true;
     const probe = data.toString().split('\n')[0].replace(/\r/g, '').trim();
 
-    // TLS or other binary — dead, cut it
+    // TLS or other binary — they can't talk to a dungeon in ciphertext
     if (data[0] === 0x16 && data[1] === 0x03) {
       log(ip, 'SCANNER:TLS');
-      socket.end();
+      socket.end('The dungeon does not speak in tongues. Try knocking normally.\n');
       return true;
     }
-    // SSH — send fake banner, they'll fail key exchange and leave
+    // SSH — fake banner, they'll fail key exchange and leave
     if (probe.startsWith('SSH-2.0-')) {
       state.mode = 'ssh';
       log(ip, `SCANNER:SSH ${probe}`);
-      socket.write('SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6\r\n');
+      socket.write('SSH-2.0-MudPotOS_4.2.0 You_rolled_a_1_on_your_hacking_check\r\n');
       return true;
     }
     // HTTP — serve the lobby as a web page
@@ -43,7 +43,7 @@ function handleScanner(data, ip, socket, state) {
     // Known dead probes (MGLNDD taggers, etc)
     if (/^MGLNDD_/.test(probe)) {
       log(ip, `SCANNER:PROBE ${probe}`);
-      socket.end();
+      socket.end('You cast IDENTIFY but the dungeon resists. It stares back.\n');
       return true;
     }
   }

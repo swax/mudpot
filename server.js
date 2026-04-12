@@ -89,6 +89,15 @@ const server = net.createServer((socket) => {
         socket.end('\nYou find your way back to the upper levels. The station hums quietly behind you.\n');
         return;
       }
+      if (response.startsWith('VICTORY')) {
+        const text = response.slice('VICTORY'.length);
+        const delay = 500 + Math.floor(Math.random() * 1000);
+        setTimeout(function() {
+          if (socket.destroyed) return;
+          socket.end(text);
+        }, delay);
+        return;
+      }
 
       // Random delay 500-1500ms — feels like the station is thinking
       const delay = 500 + Math.floor(Math.random() * 1000);

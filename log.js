@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const LOG_FILE = '/var/log/mudpot.log';
+const LOG_FILE = process.env.MUDPOT_LOG || '/var/log/mudpot.log';
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
 
 function log(ip, msg) {

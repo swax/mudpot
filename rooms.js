@@ -25,8 +25,8 @@ lighting. The walls here are older than the rest of the station — original
 construction, maybe older. Faint geometric patterns have been etched into
 the metal at irregular intervals. Too precise for graffiti. Too old for
 recent work. The air feels different here, almost charged. You notice
-a sealed door to the west marked "RECORDS" and stairs leading up.`,
-    exits: { south: 'lobby', west: 'archive', up: 'lab' },
+a door to the west marked "RECORDS".`,
+    exits: { south: 'lobby', west: 'archive' },
     items: {}
   },
 
@@ -55,7 +55,8 @@ Do not open without environmental suit.`
 are empty — whatever was stored here was removed long ago, or never replaced.
 A console in the corner still has power, its screen casting a faint green glow
 across the floor. The air smells faintly of ozone and something older, something
-you can't quite place. A heavy door to the north is sealed with a biometric lock.`,
+you can't quite place. Resting on the console is a small security seal, still
+faintly warm. A heavy door to the north is sealed with a biometric lock.`,
     exits: { east: 'corridor' },
     locked: { north: 'lab' },
     lockItem: 'access_crystal',
@@ -86,7 +87,7 @@ A sealed passage to the east has a security reader.`,
     exits: { south: 'archive', east: 'vault_door' },
     items: {
       'scratched_note': `Scratched into the metal in small, deliberate letters:
-"To pass, speak the name as it returns from the void."`,
+"To pass, speak the word as it returns from the void."`,
       'star_chart': `Two overlapping star charts drawn on the wall:
 
 The first uses rigid geometric lines, connecting stars in perfect
@@ -116,9 +117,9 @@ door. Its base is inscribed with a single word: "VALEN."`,
     lockItem: 'security_seal',
     unlockMsg: 'You press the security seal to the reader. It hums softly. The panel activates.',
     puzzle: true,
-    puzzleAnswer: 'nelav',
+    puzzleAnswer: 'theone',
     puzzleSolved: false,
-    puzzlePrompt: 'PANEL> ',
+    puzzlePrompt: 'We live for... we die for... > ',
     puzzleSuccess: `The door shudders and splits along the seam between crystal and shadow, revealing a passage to the north.`,
     puzzleFail: 'The panel dims briefly, then resets. That was not the answer.',
     items: {

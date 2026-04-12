@@ -1,5 +1,11 @@
 <?php
-$logFile = '/var/log/mudpot.log';
+$envFile = __DIR__ . '/.env';
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if ($line && $line[0] !== '#') putenv(trim($line));
+    }
+}
+$logFile = getenv('MUDPOT_LOG') ?: '/var/log/mudpot.log';
 $lines = [];
 if (file_exists($logFile . '.1')) {
     $lines = file($logFile . '.1', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -41,6 +47,7 @@ foreach ($lines as $line) {
             'items' => [],
             'furthest' => 'lobby',
             'reached_vault' => false,
+            'victory' => false,
             'kicked' => false,
             'kick_reason' => null,
         ];
@@ -60,6 +67,9 @@ foreach ($lines as $line) {
         }
         if (preg_match('/^TOOK (.+)$/', $msg, $tm)) {
             $current[$ip]['items'][] = $tm[1];
+        }
+        if ($msg === 'VICTORY') {
+            $current[$ip]['victory'] = true;
         }
         if (preg_match('/^KICKED: (.+)$/', $msg, $km)) {
             $current[$ip]['kicked'] = true;
@@ -83,7 +93,7 @@ $totalSessions = count($sessions);
 $uniqueIPs = count(array_unique(array_column($sessions, 'ip')));
 $totalCmds = array_sum(array_column($sessions, 'cmd_count'));
 $totalTime = array_sum(array_column($sessions, 'duration'));
-$vaultReached = count(array_filter($sessions, function($s) { return $s['reached_vault']; }));
+$victories = count(array_filter($sessions, function($s) { return $s['victory']; }));
 $kicked = count(array_filter($sessions, function($s) { return $s['kicked']; }));
 
 // Room depth ordering
@@ -315,8 +325,8 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
             <div class="stat-label">total time exploring</div>
         </div>
         <div class="stat-box">
-            <div class="stat-value green"><?= $vaultReached ?></div>
-            <div class="stat-label">reached the sanctum</div>
+            <div class="stat-value green"><?= $victories ?></div>
+            <div class="stat-label">victories</div>
         </div>
         <div class="stat-box">
             <div class="stat-value red"><?= $kicked ?></div>
@@ -377,7 +387,8 @@ function escHtml($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
             <td><?= $s['cmd_count'] ?></td>
             <td class="<?= $s['reached_vault'] ? 'vault' : 'room' ?>"><?= $roomNames[$s['furthest']] ?? $s['furthest'] ?></td>
             <td>
-                <?php if ($s['reached_vault']): ?><span class="vault">completed</span>
+                <?php if ($s['victory']): ?><span class="vault">victory</span>
+                <?php elseif ($s['reached_vault']): ?><span class="vault">completed</span>
                 <?php elseif ($s['kicked']): ?><span class="kicked-tag">kicked: <?= escHtml($s['kick_reason']) ?></span>
                 <?php else: ?>-
                 <?php endif; ?>

@@ -7,10 +7,7 @@ function log(ip, msg) {
   try {
     const stats = fs.statSync(LOG_FILE);
     if (stats.size > MAX_LOG_SIZE) {
-      // Rotate: keep last half
-      const content = fs.readFileSync(LOG_FILE, 'utf8');
-      fs.writeFileSync(LOG_FILE + '.old', content.substring(0, content.length / 2));
-      fs.writeFileSync(LOG_FILE, content.substring(content.length / 2));
+      fs.renameSync(LOG_FILE, LOG_FILE + '.1');
     }
   } catch (e) {}
   const line = `${new Date().toISOString()} [${ip}] ${msg}\n`;

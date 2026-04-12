@@ -61,6 +61,9 @@ function handleScanner(data, ip, socket, state) {
       else if (/^SYST/i.test(line)) socket.write('215 UNIX Type: MudPotOS\r\n');
       else if (/^QUIT/i.test(line)) socket.end('221 Your session has been logged. Have a nice day.\r\n');
       else socket.write('500 Unknown command. Try LIST, RETR, or PWD.\r\n');
+    } else if (state.mode === 'ssh') {
+      log(ip, 'SCANNER:SSH data');
+      // SSH clients will fail key exchange and disconnect on their own
     }
     return true;
   }

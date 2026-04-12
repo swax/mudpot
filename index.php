@@ -1,6 +1,12 @@
 <?php
 $logFile = '/var/log/mudpot.log';
-$lines = file_exists($logFile) ? file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+$lines = [];
+if (file_exists($logFile . '.1')) {
+    $lines = file($logFile . '.1', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+}
+if (file_exists($logFile)) {
+    $lines = array_merge($lines, file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+}
 
 // Parse sessions
 $sessions = [];
@@ -16,6 +22,16 @@ foreach ($lines as $line) {
     if ($ip === '::1') continue; // skip localhost test sessions
 
     if ($msg === 'CONNECTED') {
+        // Finalize any existing session for this IP to handle overlapping connections
+        if (isset($current[$ip])) {
+            $sess = $current[$ip];
+            $start = strtotime($sess['start']);
+            $end = strtotime($sess['end']);
+            $sess['duration'] = max($end - $start, 0);
+            $sess['cmd_count'] = count($sess['commands']);
+            $sess['room_count'] = count(array_unique($sess['rooms']));
+            $sessions[] = $sess;
+        }
         $current[$ip] = [
             'ip' => $ip,
             'start' => $ts,

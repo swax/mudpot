@@ -4,17 +4,14 @@ const { createSession, look, handleInput } = require('./game');
 const handleScanner = require('./scanner');
 
 const BANNER = `
-\x1b[1;32m╔══════════════════════════════════════════════════════════════╗
+\x1b[1;34m╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║   ███╗   ███╗██╗   ██╗██████╗ ██████╗  ██████╗ ████████╗     ║
-║   ████╗ ████║██║   ██║██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝     ║
-║   ██╔████╔██║██║   ██║██║  ██║██████╔╝██║   ██║   ██║        ║
-║   ██║╚██╔╝██║██║   ██║██║  ██║██╔═══╝ ██║   ██║   ██║        ║
-║   ██║ ╚═╝ ██║╚██████╔╝██████╔╝██║     ╚██████╔╝   ██║        ║
-║   ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚═╝      ╚═════╝    ╚═╝        ║
+║              G R E Y    S E C T O R                          ║
 ║                                                              ║
-║         Welcome to the server. You look tired.               ║
-║         Why not stay a while and explore?                    ║
+║         Babylon Station  //  Lower Levels                    ║
+║                                                              ║
+║         The station sleeps. You are still awake.             ║
+║         The lower levels stretch out before you.             ║
 ║                                                              ║
 ║         Type 'help' for commands.                            ║
 ║                                                              ║
@@ -27,7 +24,7 @@ let connectionCount = 0;
 
 const server = net.createServer((socket) => {
   if (connectionCount >= MAX_CONNECTIONS) {
-    socket.end('Server full. Try again later.\n');
+    socket.end('The lower levels are too crowded tonight. Try again later.\n');
     return;
   }
   connectionCount++;
@@ -82,18 +79,18 @@ const server = net.createServer((socket) => {
       cmdCount++;
       if (cmdCount > MAX_CMDS_PER_MIN) {
         log(ip, 'KICKED: rate limit');
-        socket.end('\nSlow down. Connection closed.\n');
+        socket.end('\nThe station does not respond well to haste. Connection closed.\n');
         return;
       }
 
       const response = handleInput(session, line);
       if (response === 'QUIT') {
         log(ip, 'QUIT');
-        socket.end('\nGoodbye. Your session has been logged. Have a nice day.\n');
+        socket.end('\nYou find your way back to the upper levels. The station hums quietly behind you.\n');
         return;
       }
 
-      // Random delay 500-1500ms — wastes time and feels realistic
+      // Random delay 500-1500ms — feels like the station is thinking
       const delay = 500 + Math.floor(Math.random() * 1000);
       setTimeout(function() {
         if (socket.destroyed) return;
@@ -110,7 +107,7 @@ const server = net.createServer((socket) => {
 
   socket.on('timeout', () => {
     log(ip, 'TIMEOUT');
-    socket.end('\nYou drift off to sleep in the server room. Connection closed.\n');
+    socket.end('\nYou drift off to sleep in a forgotten corridor. The station continues without you.\n');
   });
 
   socket.on('close', () => {
@@ -124,6 +121,6 @@ const server = net.createServer((socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`MudPot listening on port ${PORT}`);
+  console.log(`Grey Sector listening on port ${PORT}`);
   log('SYSTEM', `Server started on port ${PORT}`);
 });

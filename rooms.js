@@ -1,146 +1,200 @@
 const rooms = {
   lobby: {
-    name: 'Server Lobby',
-    desc: `You find yourself in what appears to be the entrance to a production server.
-The air hums with the sound of cooling fans. A flickering monitor on the wall
-displays scrolling access logs. A worn sign reads: "AUTHORIZED PERSONNEL ONLY."
-A half-eaten mass of text sits on the desk labeled 'README.txt'.`,
+    name: 'Junction G-17',
+    desc: `You stand at a junction where three maintenance corridors meet in the lower
+levels of the station. The main lights are off — only dim emergency strips along
+the floor cast a pale blue glow. It must be well past midnight. The hum of the
+station's life support is the only sound, distant and rhythmic. A posted notice
+is pinned to the wall, its edges curling. The corridors stretch north and east
+into darkness.`,
     exits: { north: 'corridor', east: 'storage' },
     items: {
-      'readme.txt': `=== INTERNAL NOTE ===
-Database credentials have been moved to the vault.
-New keycard required for access. Check the archive.
-- sysadmin (2024-01-15)`
+      'posted_notice': `=== STATION MAINTENANCE — GREY SECTOR ===
+Power fluctuations reported in lower level corridors G-14 through G-22.
+Crystalline residue found near conduit junctions — do not touch.
+Access crystal required for Records section.
+Forward anomalies to station operations.
+— Maintenance Chief Kowalski`
     }
   },
 
   corridor: {
-    name: 'Dim Corridor',
-    desc: `A long corridor stretches before you, lit by buzzing fluorescent lights.
-Server racks line both walls, their LEDs blinking in hypnotic patterns.
-Someone has taped a printed meme to one of the racks. It says "there is no
-cloud, it's just someone else's computer." You notice a door to the west
-marked "ARCHIVE" and stairs leading up.`,
+    name: 'Lower Passage',
+    desc: `A long passage stretches before you, lit only by faint strips of emergency
+lighting. The walls here are older than the rest of the station — original
+construction, maybe older. Faint geometric patterns have been etched into
+the metal at irregular intervals. Too precise for graffiti. Too old for
+recent work. The air feels different here, almost charged. You notice
+a sealed door to the west marked "RECORDS" and stairs leading up.`,
     exits: { south: 'lobby', west: 'archive', up: 'lab' },
     items: {}
   },
 
   storage: {
-    name: 'Storage Closet',
-    desc: `A cramped storage closet filled with tangled ethernet cables and old
-hardware. A dusty shelf holds rows of backup tapes from 2019. In the corner,
-a small box catches your eye — it contains a rusty keycard with "ARCHIVE"
-printed on it.`,
+    name: 'Maintenance Alcove',
+    desc: `A narrow alcove off the main junction, cluttered with old supply crates
+and tangled conduit cable. Some crates bear Minbari trade markings, others
+are standard station issue from years ago. A layer of dust covers everything.
+In the back, wedged between two crates, you spot a faintly glowing crystal
+— a station access crystal, the kind used for restricted sections.`,
     exits: { west: 'lobby' },
     items: {
-      'backup_tape': `BACKUP MANIFEST 2019-03-22
-Contents: /var/db/users.sql, /etc/shadow.bak, /opt/app/.env
-Status: CORRUPTED — do not restore`
+      'cargo_manifest': `CARGO MANIFEST — BAY G-14 — 2258
+Standard medical supplies (Lot 4411)
+Minbari cultural exchange materials (sealed)
+3x containers — origin unknown — contents: crystalline substrate
+NOTE: Containers were never claimed. Origin records missing.
+Do not open without environmental suit.`
     },
-    pickup: 'keycard'
+    pickup: 'access_crystal'
   },
 
   archive: {
-    name: 'The Archive',
-    desc: `Rows of old filing cabinets fill this cold room. Most drawers are empty,
-but one is slightly ajar. The room smells like old paper and regret.
-A terminal in the corner displays a blinking cursor. A heavy door to the
-north has an electronic lock — it requires a security badge.`,
+    name: 'Records Section',
+    desc: `Rows of data crystal storage racks fill this cold, quiet room. Most slots
+are empty — whatever was stored here was removed long ago, or never replaced.
+A console in the corner still has power, its screen casting a faint green glow
+across the floor. The air smells faintly of ozone and something older, something
+you can't quite place. A heavy door to the north is sealed with a biometric lock.`,
     exits: { east: 'corridor' },
     locked: { north: 'lab' },
-    lockItem: 'keycard',
-    unlockMsg: 'You swipe the keycard. The lock clicks green. The door to the north opens.',
+    lockItem: 'access_crystal',
+    unlockMsg: 'You press the access crystal to the lock. It pulses once, then the door slides open with a soft hiss.',
     items: {
-      'filing_cabinet': `PERSONNEL FILE — ADMIN ACCOUNT
-Username: admin
-Password: [REDACTED — see vault terminal]
-Access Level: root
-Notes: "Changed after the 2023 incident. Do NOT reuse."`
+      'station_logs': `=== PERSONNEL INCIDENT LOG — GREY SECTOR ===
+2258.091 — Technician Alvarez requested transfer after reporting
+           "singing" in the walls of corridor G-19. Request granted.
+2258.144 — Lt. Commander Chen found in G-22 at 0300, no memory
+           of how she arrived. Medical cleared. No explanation.
+2259.017 — Maintenance team reported shadows moving independently
+           of light sources in sections G-14 to G-18. Attributed
+           to "ventilation drafts affecting emergency lighting."
+2259.203 — Dr. Hasegawa's request to study Grey Sector patterns
+           denied by station command. Reason: "Not a priority."`
     },
-    pickup: 'badge'
+    pickup: 'security_seal'
   },
 
   lab: {
-    name: 'Development Lab',
-    desc: `A cluttered dev lab. Whiteboards covered in architecture diagrams line the
-walls. Three monitors show a Grafana dashboard with flatlined metrics — this
-environment has been idle for months. A sticky note on one monitor reads:
-"vault password hint: it's the cat's name backwards."
-There's a door to the east with a badge reader, and stairs going down.`,
+    name: 'Unmarked Chamber',
+    desc: `This room doesn't appear on any standard station schematic. Star charts
+cover one wall, but the constellations are marked with annotations in two
+different hands — one precise and geometric, the other fluid and organic.
+They seem to be mapping the same thing from opposite perspectives.
+A message has been scratched into the wall near the door.
+A sealed passage to the east has a security reader.`,
     exits: { south: 'archive', east: 'vault_door' },
     items: {
-      'sticky_note': `"vault password hint: it's the cat's name backwards"
-(scrawled in blue marker)`,
-      'whiteboard': `SYSTEM ARCHITECTURE
-┌──────────┐    ┌──────────┐    ┌──────────┐
-│  nginx   │───>│  app:3000│───>│ postgres │
-│ :443     │    │  node    │    │ :5432    │
-└──────────┘    └──────────┘    └──────────┘
-                     │
-                ┌────┴─────┐
-                │  redis   │
-                │ :6379    │
-                └──────────┘`
+      'scratched_note': `Scratched into the metal in small, deliberate letters:
+"To pass, speak the name as it returns from the void."`,
+      'star_chart': `Two overlapping star charts drawn on the wall:
+
+The first uses rigid geometric lines, connecting stars in perfect
+crystalline lattices. Beside each connection: annotations about
+structure, purpose, evolution guided toward a single pattern.
+The philosophy of shepherds.
+
+The second uses flowing, organic curves. The same stars, but
+connected by paths of conflict and competition. Annotations
+about strength, adaptation, survival through struggle.
+The philosophy of architects of war.
+
+Both charts map the same galaxy. Neither is wrong.`
     }
   },
 
   vault_door: {
-    name: 'Vault Entrance',
-    desc: `A reinforced steel door with a digital keypad. Above the keypad, a small
-screen reads: "ENTER PASSWORD." A security camera watches you from the ceiling.
-A small cat figurine sits on a shelf next to the door. Its collar tag reads "Whiskers."`,
+    name: 'The Threshold',
+    desc: `A door unlike anything else on the station. One half is smooth crystalline
+material that catches light in ways that seem impossible. The other half is
+dark, flowing, almost organic — like solidified shadow. A security panel
+beside the door awaits input. Above the door, faint symbols in a language
+older than any you know. A small carved figure sits in a niche beside the
+door. Its base is inscribed with a single word: "VALEN."`,
     exits: { west: 'lab' },
     locked: { north: 'vault' },
-    lockItem: 'badge',
-    unlockMsg: 'You hold the badge to the reader. It beeps. The keypad activates.',
+    lockItem: 'security_seal',
+    unlockMsg: 'You press the security seal to the reader. It hums softly. The panel activates.',
     puzzle: true,
-    puzzleAnswer: 'sreksihw',
+    puzzleAnswer: 'nelav',
     puzzleSolved: false,
-    puzzlePrompt: 'KEYPAD> ',
-    puzzleSuccess: `The vault door groans open, revealing a passage to the north.`,
-    puzzleFail: 'The keypad buzzes red. Incorrect password.',
+    puzzlePrompt: 'PANEL> ',
+    puzzleSuccess: `The door shudders and splits along the seam between crystal and shadow, revealing a passage to the north.`,
+    puzzleFail: 'The panel dims briefly, then resets. That was not the answer.',
     items: {
-      'cat_figurine': `A porcelain cat figurine. Its collar tag reads "Whiskers."
-It looks like it's judging you.`
+      'carved_figure': `A small figure carved from a material you don't recognize — neither stone
+nor metal nor crystal. It depicts a robed figure standing between two great
+forces, arms raised, holding the space between them open.
+Its base reads: "VALEN."
+The carving is warm to the touch.`
     }
   },
 
   vault: {
-    name: 'The Vault',
-    desc: `You've reached the vault. The room is small and cold. A single terminal
-sits on a pedestal in the center, its screen glowing green. This is it.
-The terminal displays:
+    name: 'The Sanctum',
+    desc: `You've reached the deepest point. The chamber is small and cold and silent.
+The walls shift as you move — crystalline geometric patterns on one side,
+dark flowing organic forms on the other, as though two different forces
+shaped this room and neither finished. A console sits on a pedestal in
+the center, its display cycling slowly. It reads:
 
-  ╔══════════════════════════════════════════════╗
-  ║  CLASSIFIED CREDENTIALS — ROOT ACCESS       ║
-  ╠══════════════════════════════════════════════╣
-  ║  Host: prod-db-01.internal                  ║
-  ║  User: root                                 ║
-  ║  Pass: ZjByX3RoM19sb2xz                    ║
-  ║                                             ║
-  ║  AWS_ACCESS_KEY_ID=AKIA3EXAMPLE7HONEYPOT    ║
-  ║  AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDE  ║
-  ║                                             ║
-  ║  flag{congratulations_you_played_yourself}   ║
-  ╚══════════════════════════════════════════════╝
+  \x1b[0;36m╔══════════════════════════════════════════════════╗
+  ║                                                  ║
+  ║   Two questions echo in this place:              ║
+  ║                                                  ║
+  ║   The first voice asks:  "Who are you?"          ║
+  ║   The second voice asks: "What do you want?"     ║
+  ║                                                  ║
+  ║   One cultivates order. One cultivates conflict.  ║
+  ║   Both believe they are guiding you.             ║
+  ║                                                  ║
+  ║   The war between them shaped everything.        ║
+  ║   It ended only when someone asked               ║
+  ║   a different question:                          ║
+  ║                                                  ║
+  ║   "Why are you here?"                            ║
+  ║                                                  ║
+  ╚══════════════════════════════════════════════════╝\x1b[0m
 
-A fortune cookie sits on the desk, unopened.`,
+A small data crystal on the pedestal glows faintly.`,
     exits: { south: 'vault_door' },
     items: {
-      'fortune_cookie': `You crack it open. The fortune reads:
-"Every second you spent here was a second you weren't hacking a real server.
-Thanks for playing. We logged everything. <3"`,
-      'terminal': `root@prod-db-01:~# SELECT * FROM users LIMIT 5;
-+----+----------+------------------+---------------------+
-| id | username | email            | last_login          |
-+----+----------+------------------+---------------------+
-|  1 | admin    | admin@corp.local | 2024-01-15 08:23:11 |
-|  2 | jsmith   | js@corp.local    | 2024-01-14 17:45:02 |
-|  3 | devops   | dev@corp.local   | 2024-01-15 09:01:44 |
-|  4 | backup   | bk@corp.local    | 2023-12-01 00:00:00 |
-|  5 | guest    | guest@corp.local | 2024-01-10 12:00:00 |
-+----+----------+------------------+---------------------+
-5 rows in set (0.003 sec)`
+      'data_crystal': `You hold the crystal up. A recording plays — a voice, ancient and calm:
+
+"They are not enemies. They are gardeners. Each tending the younger
+races toward what they believe is right. One through structure and
+illumination. One through conflict and evolution. Neither is wrong.
+Neither is right. The only truth is the one you carry out of this
+place with you.
+
+The question was never which side to choose.
+The question was when to stop letting others choose for you."
+
+The recording ends. The crystal dims.`,
+      'console': `=== RECOVERED STATION LOGS — GREY SECTOR ===
+
+2258.147 — Maintenance crew reported crystalline growth in
+           corridor G-17. Removed. Grew back overnight.
+
+2259.031 — Ambassador's aide found wandering Grey Sector.
+           Could not explain how she got there. Reported
+           "hearing music that wasn't there."
+
+2259.198 — Dark stains appeared on bulkhead G-22.
+           Analysis inconclusive. Not biological.
+           Not mechanical. "Something else entirely."
+
+2260.004 — Two crewmen reported seeing each other in the
+           same corridor, walking in opposite directions.
+           Station records confirm only one was on duty.
+
+2260.171 — Dr. Hasegawa's final report: "The patterns are
+           not random. They are a conversation. We are
+           simply too small to hear it."
+
+2260.172 — Dr. Hasegawa's quarters found empty. Transfer
+           records show no departure. Personal effects
+           remain. Case closed — "voluntary reassignment."`
     }
   }
 };

@@ -54,7 +54,7 @@ function handleInput(session, raw) {
       return `\n\x1b[1;32m${room.puzzleSuccess}\x1b[0m\n\n`;
     } else if (input === 'quit' || input === 'back' || input === 'cancel') {
       session.inputMode = 'normal';
-      return '\nYou step back from the keypad.\n\n';
+      return '\nYou step back from the panel.\n\n';
     } else {
       return `\n\x1b[1;31m${room.puzzleFail}\x1b[0m\n${room.puzzlePrompt}`;
     }
@@ -102,7 +102,7 @@ function handleInput(session, raw) {
           const dest = room.locked[dir];
           const result = tryUnlock(session, room, dir);
           if (result === 'puzzle') {
-            return `\n${unlockText}\n\nThe keypad awaits your input.\n${room.puzzlePrompt}`;
+            return `\n${unlockText}\n\nThe panel awaits your input.\n${room.puzzlePrompt}`;
           }
           session.room = dest;
           log(session.ip, `MOVED to ${session.room}`);
@@ -183,7 +183,7 @@ function handleInput(session, raw) {
           const unlockText = room.unlockMsg || 'You use the ' + arg + '. The way opens.';
           const result = tryUnlock(session, room, dir);
           if (result === 'puzzle') {
-            return `\n${unlockText}\n\nThe keypad awaits your input.\n${room.puzzlePrompt}`;
+            return `\n${unlockText}\n\nThe panel awaits your input.\n${room.puzzlePrompt}`;
           }
           return `\n\x1b[1;32m${unlockText}\x1b[0m\n\n`;
         }
@@ -198,26 +198,25 @@ function handleInput(session, raw) {
     case 'q':
       return 'QUIT';
 
-    // Fun easter eggs for common scanner/hacker commands
     case 'ls':
-      return '\n. .. .bash_history .ssh/ not_the_droids_youre_looking_for/\n\n';
+      return '\nThe corridor stretches in both directions. Try \'look\' to survey your surroundings.\n\n';
     case 'pwd':
-      return '\n/honeypot/maze/you_are_here\n\n';
+      return '\nSomewhere in Grey Sector. The station directory on the wall is too faded to read.\n\n';
     case 'whoami':
-      return '\nvisitor (uid=1337)\n\n';
+      return '\nA wanderer. You came down here for a reason, even if you\'ve forgotten what it was.\n\n';
     case 'id':
-      return '\nuid=1337(visitor) gid=1337(guests) groups=1337(guests),0(definitely_not_root)\n\n';
+      return '\nYour station ident reads: VISITOR — UNRESTRICTED TRANSIT — LEVEL GREY\n\n';
     case 'uname':
-      return '\nMudPotOS 4.2.0-honeypot #1 SMP x86_64 GNU/Linux\n\n';
+      return '\nBabylon Station — Grey Sector — Lower Levels\n\n';
     case 'sudo':
-      return '\n[sudo] password for visitor: Nice try.\n\n';
+      return '\nThat authority doesn\'t reach this deep.\n\n';
     case 'wget':
     case 'curl':
-      return '\nThe network here only goes deeper, not out.\n\n';
+      return '\nThere\'s no comm signal this far down.\n\n';
     case 'rm':
-      return '\nYou hear a distant laugh. Nothing was deleted.\n\n';
+      return '\nSome things in Grey Sector can\'t be removed. They\'ve been here longer than the station.\n\n';
     case 'ssh':
-      return '\nYou\'re already inside. How much deeper do you want to go?\n\n';
+      return '\nYou\'re already deeper than most people go.\n\n';
 
     default:
       return `\nI don\'t understand "${cmd}". Type \x1b[1mhelp\x1b[0m for commands.\n\n`;

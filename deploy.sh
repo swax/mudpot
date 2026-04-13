@@ -20,6 +20,7 @@ cp "$SRC"/.env "$WWW/"
 chown mudpot:mudpot "$WWW"/*.php "$WWW"/.env
 
 echo "Restarting pm2 process..."
-sudo -u mudpot pm2 restart mudpot
+sudo -u mudpot bash -c "cd $DEST && pm2 delete mudpot" 2>/dev/null || true
+sudo -u mudpot bash -c "cd $DEST && MUDPOT_PORT='$MUDPOT_PORT' pm2 start server.js --name mudpot && pm2 save"
 
 echo "Deploy complete."

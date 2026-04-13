@@ -6,7 +6,7 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     set -a; source "$SCRIPT_DIR/.env"; set +a
 fi
 
-SRC="${MUDPOT_SRC:-$SCRIPT_DIR}"
+SRC="${MUDPOT_SRC:-$SCRIPT_DIR/src}"
 DEST="${MUDPOT_DEST:?MUDPOT_DEST not set — copy .env.example to .env}"
 WWW="${MUDPOT_WWW:?MUDPOT_WWW not set — copy .env.example to .env}"
 

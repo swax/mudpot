@@ -21,17 +21,20 @@ $current = [];
 foreach ($lines as $line) {
     if (!preg_match('/^(\S+) \[(.+?)\] (.+)$/', $line, $m)) continue;
     $ts = $m[1];
-    $ip = $m[2];
+    $connId = $m[2]; // "ip:srcport" for new logs, plain "ip" for old logs
     $msg = $m[3];
 
-    if ($ip === 'SYSTEM') continue;
+    // Extract bare IP (strip :srcport suffix if present) for display/filtering
+    $ip = preg_replace('/:\d+$/', '', $connId);
+
+    if ($connId === 'SYSTEM') continue;
     if ($ip === '::1') continue; // skip localhost test sessions
 
     if (preg_match('/^(?:SSH )?CONNECTED(?: port=(\d+))?$/', $msg, $connMatch)) {
         $port = $connMatch[1] ?? null;
-        // Finalize any existing session for this IP to handle overlapping connections
-        if (isset($current[$ip])) {
-            $sess = $current[$ip];
+        // Finalize any existing session for this connection to handle incomplete logs
+        if (isset($current[$connId])) {
+            $sess = $current[$connId];
             $start = strtotime($sess['start']);
             $end = strtotime($sess['end']);
             $sess['duration'] = max($end - $start, 0);
@@ -39,7 +42,7 @@ foreach ($lines as $line) {
             $sess['room_count'] = count(array_unique($sess['rooms']));
             $sessions[] = $sess;
         }
-        $current[$ip] = [
+        $current[$connId] = [
             'ip' => $ip,
             'port' => $port,
             'start' => $ts,
@@ -53,39 +56,39 @@ foreach ($lines as $line) {
             'kicked' => false,
             'kick_reason' => null,
         ];
-    } elseif (isset($current[$ip])) {
-        $current[$ip]['end'] = $ts;
+    } elseif (isset($current[$connId])) {
+        $current[$connId]['end'] = $ts;
 
         if (preg_match('/^\[(.+?)\] (.+)$/', $msg, $cm)) {
             $room = $cm[1];
             $cmd = $cm[2];
-            $current[$ip]['commands'][] = ['room' => $room, 'cmd' => $cmd, 'ts' => $ts];
+            $current[$connId]['commands'][] = ['room' => $room, 'cmd' => $cmd, 'ts' => $ts];
         }
         if (preg_match('/^MOVED to (.+)$/', $msg, $mm)) {
             $room = $mm[1];
-            $current[$ip]['rooms'][] = $room;
-            $current[$ip]['furthest'] = $room;
-            if ($room === 'vault') $current[$ip]['reached_vault'] = true;
+            $current[$connId]['rooms'][] = $room;
+            $current[$connId]['furthest'] = $room;
+            if ($room === 'vault') $current[$connId]['reached_vault'] = true;
         }
         if (preg_match('/^TOOK (.+)$/', $msg, $tm)) {
-            $current[$ip]['items'][] = $tm[1];
+            $current[$connId]['items'][] = $tm[1];
         }
         if ($msg === 'VICTORY') {
-            $current[$ip]['victory'] = true;
+            $current[$connId]['victory'] = true;
         }
         if (preg_match('/^(?:SSH )?KICKED: (.+)$/', $msg, $km)) {
-            $current[$ip]['kicked'] = true;
-            $current[$ip]['kick_reason'] = $km[1];
+            $current[$connId]['kicked'] = true;
+            $current[$connId]['kick_reason'] = $km[1];
         }
         if (preg_match('/^(?:SSH )?DISCONNECTED/', $msg) || preg_match('/^(?:SSH )?(?:QUIT|TIMEOUT)$/', $msg)) {
-            $sess = $current[$ip];
+            $sess = $current[$connId];
             $start = strtotime($sess['start']);
             $end = strtotime($sess['end']);
             $sess['duration'] = max($end - $start, 0);
             $sess['cmd_count'] = count($sess['commands']);
             $sess['room_count'] = count(array_unique($sess['rooms']));
             $sessions[] = $sess;
-            unset($current[$ip]);
+            unset($current[$connId]);
         }
     }
 }

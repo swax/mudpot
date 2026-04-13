@@ -18,7 +18,7 @@ export interface Room {
 export interface Session {
   room: string;
   inventory: string[];
-  ip: string;
+  connId: string;
   inputMode: "normal" | "puzzle";
   rooms: Record<string, Room>;
 }

@@ -12,11 +12,11 @@ function tryUnlock(session: Session, room: Room, dir: string): string {
   return "unlocked";
 }
 
-export function createSession(ip: string): Session {
+export function createSession(connId: string): Session {
   return {
     room: "lobby",
     inventory: [],
-    ip,
+    connId,
     inputMode: "normal",
     rooms: JSON.parse(JSON.stringify(rooms)),
   };
@@ -40,7 +40,7 @@ export function handleInput(session: Session, raw: string): string {
   const input = raw.trim().toLowerCase();
   if (!input) return "";
 
-  log(session.ip, `[${session.room}] ${raw.trim()}`);
+  log(session.connId, `[${session.room}] ${raw.trim()}`);
 
   // Puzzle input mode
   if (session.inputMode === "puzzle") {
@@ -123,7 +123,7 @@ export function handleInput(session: Session, raw: string): string {
             return `\n${unlockText}\n\nThe panel awaits your input.\n${room.puzzlePrompt}`;
           }
           session.room = dest;
-          log(session.ip, `MOVED to ${session.room}`);
+          log(session.connId, `MOVED to ${session.room}`);
           return `\n${unlockText}\n` + look(session);
         }
         return "\nThe way is locked. You need something to get through.\n\n";
@@ -142,7 +142,7 @@ export function handleInput(session: Session, raw: string): string {
           // Let them enter the room
         }
         session.room = dest;
-        log(session.ip, `MOVED to ${session.room}`);
+        log(session.connId, `MOVED to ${session.room}`);
         return look(session);
       }
 
@@ -163,9 +163,9 @@ export function handleInput(session: Session, raw: string): string {
           k.includes(arg.replace(/\s+/g, "_")),
       );
       if (itemKey) {
-        log(session.ip, `READ ${itemKey}`);
+        log(session.connId, `READ ${itemKey}`);
         if (session.room === "vault" && itemKey === "data_crystal") {
-          log(session.ip, "VICTORY");
+          log(session.connId, "VICTORY");
           return (
             "VICTORY\n\x1b[0;37m" +
             room.items[itemKey] +
@@ -199,7 +199,7 @@ export function handleInput(session: Session, raw: string): string {
           }
           session.inventory.push(item);
           delete room.pickup;
-          log(session.ip, `TOOK ${item}`);
+          log(session.connId, `TOOK ${item}`);
           return `\nYou pick up the \x1b[1;33m${item}\x1b[0m.\n\n`;
         }
       }

@@ -99,21 +99,6 @@ function onConnection(socket: net.Socket): void {
 
     const line = cmdQueue.shift()!;
 
-    // Rate limit commands
-    const now = Date.now();
-    if (now - cmdWindowStart > 60000) {
-      cmdCount = 0;
-      cmdWindowStart = now;
-    }
-    cmdCount++;
-    if (cmdCount > MAX_CMDS_PER_MIN) {
-      log(connId, "KICKED: rate limit");
-      socket.end(
-        "\nThe station does not respond well to haste. Connection closed.\n",
-      );
-      return;
-    }
-
     const response = handleInput(session, line);
     if (response === "QUIT") {
       log(connId, "QUIT");
@@ -199,6 +184,21 @@ function onConnection(socket: net.Socket): void {
       // Truncate long lines
       if (line.length > MAX_LINE) {
         line = line.substring(0, MAX_LINE);
+      }
+
+      // Rate limit on arrival, not on processing
+      const now = Date.now();
+      if (now - cmdWindowStart > 60000) {
+        cmdCount = 0;
+        cmdWindowStart = now;
+      }
+      cmdCount++;
+      if (cmdCount > MAX_CMDS_PER_MIN) {
+        log(connId, "KICKED: rate limit");
+        socket.end(
+          "\nThe station does not respond well to haste. Connection closed.\n",
+        );
+        return;
       }
 
       cmdQueue.push(line);

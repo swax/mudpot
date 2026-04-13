@@ -108,23 +108,6 @@ function startSSH({
 
             const line = cmdQueue.shift()!;
 
-            const now = Date.now();
-            if (now - cmdWindowStart > 60000) {
-              cmdCount = 0;
-              cmdWindowStart = now;
-            }
-            cmdCount++;
-            if (cmdCount > maxCmdsPerMin) {
-              log(connId, "SSH KICKED: rate limit");
-              sshWrite(
-                stream,
-                "\nThe station does not respond well to haste. Connection closed.\n",
-              );
-              stream.end();
-              client.end();
-              return;
-            }
-
             const response = handleInput(session!, line);
             if (response === "QUIT") {
               log(connId, "SSH QUIT");
@@ -194,6 +177,24 @@ function startSSH({
 
                 const line = lineBuffer.substring(0, maxLine);
                 lineBuffer = "";
+
+                // Rate limit on arrival, not on processing
+                const now = Date.now();
+                if (now - cmdWindowStart > 60000) {
+                  cmdCount = 0;
+                  cmdWindowStart = now;
+                }
+                cmdCount++;
+                if (cmdCount > maxCmdsPerMin) {
+                  log(connId, "SSH KICKED: rate limit");
+                  sshWrite(
+                    stream,
+                    "\nThe station does not respond well to haste. Connection closed.\n",
+                  );
+                  stream.end();
+                  client.end();
+                  return;
+                }
 
                 cmdQueue.push(line);
                 processNext();

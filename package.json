@@ -2,13 +2,14 @@
   "name": "mudpot",
   "version": "1.0.0",
   "description": "A honeypot and MUD combined. Give weary humans, AI's and bots a break from the usual grind of scanning networks.",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "node src/test.js",
-    "start": "node src/server.js",
-    "lint": "eslint src/*.js",
-    "lint:fix": "eslint --fix src/*.js",
-    "format": "prettier --write src/*.js"
+    "build": "tsc",
+    "test": "tsc && node dist/test.js",
+    "start": "node dist/server.js",
+    "lint": "eslint src/*.ts",
+    "lint:fix": "eslint --fix src/*.ts",
+    "format": "prettier --write src/*.ts"
   },
   "repository": {
     "type": "git",

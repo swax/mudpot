@@ -1,5 +1,6 @@
 .env
 node_modules/
+dist/
 host_key
 tls_cert.pem
 tls_key.pem

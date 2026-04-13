@@ -1,15 +1,16 @@
-const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
-const { Server: SSHServer } = require("ssh2");
-const log = require("./log");
-const { createSession, look, handleInput } = require("./game");
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { Server as SSH2Server, Connection, ServerChannel } from "ssh2";
+import log from "./log";
+import { createSession, look, handleInput } from "./game";
+import { Session, SSHConfig } from "./types";
 
 const SSH_PORTS = (process.env.MUDPOT_SSH_PORT || "2223")
   .split(",")
   .map((p) => parseInt(p.trim(), 10));
 
-function getHostKey() {
+function getHostKey(): string | Buffer {
   const keyPath = path.join(__dirname, "host_key");
   try {
     return fs.readFileSync(keyPath);
@@ -24,21 +25,34 @@ function getHostKey() {
   }
 }
 
-function sshWrite(stream, text) {
+function sshWrite(stream: ServerChannel, text: string): void {
   if (!stream.destroyed) stream.write(text.replace(/\r?\n/g, "\r\n"));
 }
 
-function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin, idleTimeout }) {
+function startSSH({
+  banner,
+  connections,
+  maxConnections,
+  maxLine,
+  maxCmdsPerMin,
+  idleTimeout,
+}: SSHConfig): void {
   const hostKey = getHostKey();
 
-  function onSSHConnection(client, port) {
-    const ip = (client._sock?.remoteAddress || "unknown").replace("::ffff:", "");
+  function onSSHConnection(client: Connection, port: number): void {
+    const ip = (
+      (client as unknown as { _sock?: { remoteAddress?: string } })._sock
+        ?.remoteAddress || "unknown"
+    ).replace("::ffff:", "");
     let counted = false;
-    let session = null;
-    let activeStream = null;
+    let session: Session | null = null;
+    let activeStream: ServerChannel | null = null;
 
     client.on("authentication", (ctx) => {
-      const creds = ctx.method === "password" ? ` pass=${ctx.password}` : "";
+      const creds =
+        ctx.method === "password"
+          ? ` pass=${(ctx as unknown as { password: string }).password}`
+          : "";
       log(ip, `SSH AUTH method=${ctx.method} user=${ctx.username}${creds}`);
       ctx.accept();
     });
@@ -53,7 +67,9 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
       session = createSession(ip);
       log(ip, `SSH CONNECTED port=${port}`);
 
-      const sock = client._sock;
+      const sock = (
+        client as unknown as { _sock?: net.Socket }
+      )._sock;
       if (sock && idleTimeout) {
         sock.setTimeout(idleTimeout);
         sock.on("timeout", () => {
@@ -80,7 +96,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
           activeStream = stream;
 
           sshWrite(stream, banner);
-          sshWrite(stream, look(session));
+          sshWrite(stream, look(session!));
           sshWrite(stream, "\n> ");
 
           let lineBuffer = "";
@@ -88,7 +104,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
           let cmdWindowStart = Date.now();
           let escapeState = 0; // 0=normal, 1=saw ESC, 2=saw ESC[
 
-          stream.on("data", (data) => {
+          stream.on("data", (data: Buffer) => {
             for (let i = 0; i < data.length; i++) {
               const ch = data[i];
 
@@ -142,7 +158,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
                   return;
                 }
 
-                const response = handleInput(session, line);
+                const response = handleInput(session!, line);
                 if (response === "QUIT") {
                   log(ip, "SSH QUIT");
                   sshWrite(
@@ -167,7 +183,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
                 setTimeout(() => {
                   if (stream.destroyed) return;
                   sshWrite(stream, response);
-                  if (session.inputMode !== "puzzle") {
+                  if (session!.inputMode !== "puzzle") {
                     stream.write("> ");
                   }
                 }, 500 + Math.floor(Math.random() * 1000));
@@ -196,7 +212,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
           });
         });
 
-        sshSession.on("exec", (accept, reject, info) => {
+        sshSession.on("exec", (accept, _reject, info) => {
           log(ip, `SSH EXEC: ${info.command}`);
           if (!session) session = createSession(ip);
           const response = handleInput(session, info.command);
@@ -212,7 +228,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
           stream.end();
         });
 
-        sshSession.on("subsystem", (accept, reject, info) => {
+        sshSession.on("subsystem", (accept, _reject, info) => {
           log(ip, `SSH SUBSYSTEM: ${info.name}`);
           const stream = accept();
           sshWrite(
@@ -230,7 +246,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
         connections.count--;
         log(
           ip,
-          `SSH DISCONNECTED (visited: ${session.room}, inventory: [${session.inventory.join(", ")}])`,
+          `SSH DISCONNECTED (visited: ${session!.room}, inventory: [${session!.inventory.join(", ")}])`,
         );
       }
     });
@@ -241,7 +257,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
   }
 
   SSH_PORTS.forEach((port) => {
-    new SSHServer({ hostKeys: [hostKey] }, (client) => {
+    new SSH2Server({ hostKeys: [hostKey] }, (client) => {
       onSSHConnection(client, port);
     }).listen(port, () => {
       console.log(`Grey Sector SSH listening on port ${port}`);
@@ -250,4 +266,7 @@ function startSSH({ banner, connections, maxConnections, maxLine, maxCmdsPerMin,
   });
 }
 
-module.exports = startSSH;
+export default startSSH;
+
+// net is used only for the type of _sock
+import net from "net";

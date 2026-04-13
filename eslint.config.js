@@ -1,27 +1,17 @@
 const js = require("@eslint/js");
+const tseslint = require("typescript-eslint");
 
 module.exports = [
   js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: "commonjs",
-      globals: {
-        require: "readonly",
-        module: "readonly",
-        exports: "readonly",
-        process: "readonly",
-        console: "readonly",
-        Buffer: "readonly",
-        setTimeout: "readonly",
-        setInterval: "readonly",
-        __dirname: "readonly",
-        __filename: "readonly",
-        Date: "readonly",
-      },
-    },
+    files: ["src/**/*.ts"],
     rules: {
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ];

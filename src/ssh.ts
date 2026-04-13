@@ -40,10 +40,9 @@ function startSSH({
   const hostKey = getHostKey();
 
   function onSSHConnection(client: Connection, port: number): void {
-    const ip = (
-      (client as unknown as { _sock?: { remoteAddress?: string } })._sock
-        ?.remoteAddress || "unknown"
-    ).replace("::ffff:", "");
+    const sock = (client as unknown as { _sock?: net.Socket })._sock;
+    const ip = (sock?.remoteAddress || "unknown").replace("::ffff:", "");
+    const connId = `${ip}:${sock?.remotePort}`;
     let counted = false;
     let session: Session | null = null;
     let activeStream: ServerChannel | null = null;
@@ -53,7 +52,7 @@ function startSSH({
         ctx.method === "password"
           ? ` pass=${(ctx as unknown as { password: string }).password}`
           : "";
-      log(ip, `SSH AUTH method=${ctx.method} user=${ctx.username}${creds}`);
+      log(connId, `SSH AUTH method=${ctx.method} user=${ctx.username}${creds}`);
       ctx.accept();
     });
 
@@ -64,16 +63,13 @@ function startSSH({
       }
       connections.count++;
       counted = true;
-      session = createSession(ip);
-      log(ip, `SSH CONNECTED port=${port}`);
+      session = createSession(connId);
+      log(connId, `SSH CONNECTED port=${port}`);
 
-      const sock = (
-        client as unknown as { _sock?: net.Socket }
-      )._sock;
       if (sock && idleTimeout) {
         sock.setTimeout(idleTimeout);
         sock.on("timeout", () => {
-          log(ip, "SSH TIMEOUT");
+          log(connId, "SSH TIMEOUT");
           if (activeStream && !activeStream.destroyed) {
             sshWrite(
               activeStream,
@@ -124,7 +120,7 @@ function startSSH({
 
               // Ctrl+C / Ctrl+D
               if (ch === 0x03 || ch === 0x04) {
-                log(ip, "SSH QUIT");
+                log(connId, "SSH QUIT");
                 sshWrite(
                   stream,
                   "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
@@ -148,7 +144,7 @@ function startSSH({
                 }
                 cmdCount++;
                 if (cmdCount > maxCmdsPerMin) {
-                  log(ip, "SSH KICKED: rate limit");
+                  log(connId, "SSH KICKED: rate limit");
                   sshWrite(
                     stream,
                     "\nThe station does not respond well to haste. Connection closed.\n",
@@ -160,7 +156,7 @@ function startSSH({
 
                 const response = handleInput(session!, line);
                 if (response === "QUIT") {
-                  log(ip, "SSH QUIT");
+                  log(connId, "SSH QUIT");
                   sshWrite(
                     stream,
                     "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
@@ -213,8 +209,8 @@ function startSSH({
         });
 
         sshSession.on("exec", (accept, _reject, info) => {
-          log(ip, `SSH EXEC: ${info.command}`);
-          if (!session) session = createSession(ip);
+          log(connId, `SSH EXEC: ${info.command}`);
+          if (!session) session = createSession(connId);
           const response = handleInput(session, info.command);
           const stream = accept();
           if (response === "QUIT") {
@@ -229,7 +225,7 @@ function startSSH({
         });
 
         sshSession.on("subsystem", (accept, _reject, info) => {
-          log(ip, `SSH SUBSYSTEM: ${info.name}`);
+          log(connId, `SSH SUBSYSTEM: ${info.name}`);
           const stream = accept();
           sshWrite(
             stream,
@@ -245,14 +241,14 @@ function startSSH({
       if (counted) {
         connections.count--;
         log(
-          ip,
+          connId,
           `SSH DISCONNECTED (visited: ${session!.room}, inventory: [${session!.inventory.join(", ")}])`,
         );
       }
     });
 
     client.on("error", (err) => {
-      log(ip, `SSH ERROR: ${err.message}`);
+      log(connId, `SSH ERROR: ${err.message}`);
     });
   }
 

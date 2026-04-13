@@ -65,11 +65,12 @@ function onConnection(socket: net.Socket): void {
   connections.count++;
 
   const ip = (socket.remoteAddress || "unknown").replace("::ffff:", "");
+  const connId = `${ip}:${socket.remotePort}`;
   const port = socket.localPort;
-  const session = createSession(ip);
+  const session = createSession(connId);
   const scannerState: ScannerState = { identified: false, mode: null };
 
-  log(ip, `CONNECTED port=${port}`);
+  log(connId, `CONNECTED port=${port}`);
 
   // Wait briefly for the client to speak first so we can identify
   // non-MUD protocols (HTTP, FTP, SSH, TLS) before sending the banner.
@@ -90,7 +91,7 @@ function onConnection(socket: net.Socket): void {
   let cmdCount = 0;
   let cmdWindowStart = Date.now();
   socket.on("data", (data: Buffer) => {
-    if (handleScanner(data, ip, socket, scannerState)) {
+    if (handleScanner(data, connId, socket, scannerState)) {
       clearTimeout(greetTimer);
       return;
     }
@@ -106,7 +107,7 @@ function onConnection(socket: net.Socket): void {
 
     // Handle Ctrl+C (raw 0x03), Ctrl+D (0x04), or telnet IAC IP (0xFF 0xF4)
     if (data.includes(0x03) || data.includes(0x04) || data.includes(0xf4)) {
-      log(ip, "QUIT");
+      log(connId, "QUIT");
       socket.end(
         "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
       );
@@ -117,7 +118,7 @@ function onConnection(socket: net.Socket): void {
 
     // Drop connection if buffer grows too large (no newline flood)
     if (buffer.length > MAX_BUFFER) {
-      log(ip, "KICKED: buffer overflow");
+      log(connId, "KICKED: buffer overflow");
       socket.end("\nConnection closed.\n");
       return;
     }
@@ -129,7 +130,7 @@ function onConnection(socket: net.Socket): void {
 
       // Handle Ctrl+C that arrived as part of a line
       if (line.includes("\x03")) {
-        log(ip, "QUIT");
+        log(connId, "QUIT");
         socket.end(
           "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
         );
@@ -149,7 +150,7 @@ function onConnection(socket: net.Socket): void {
       }
       cmdCount++;
       if (cmdCount > MAX_CMDS_PER_MIN) {
-        log(ip, "KICKED: rate limit");
+        log(connId, "KICKED: rate limit");
         socket.end(
           "\nThe station does not respond well to haste. Connection closed.\n",
         );
@@ -158,7 +159,7 @@ function onConnection(socket: net.Socket): void {
 
       const response = handleInput(session, line);
       if (response === "QUIT") {
-        log(ip, "QUIT");
+        log(connId, "QUIT");
         socket.end(
           "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
         );
@@ -191,7 +192,7 @@ function onConnection(socket: net.Socket): void {
   });
 
   socket.on("timeout", () => {
-    log(ip, "TIMEOUT");
+    log(connId, "TIMEOUT");
     socket.end(
       "\nYou drift off to sleep in a forgotten corridor. The station continues without you.\n",
     );
@@ -201,13 +202,13 @@ function onConnection(socket: net.Socket): void {
     clearTimeout(greetTimer);
     connections.count--;
     log(
-      ip,
+      connId,
       `DISCONNECTED (visited: ${session.room}, inventory: [${session.inventory.join(", ")}])`,
     );
   });
 
   socket.on("error", (err: Error) => {
-    log(ip, `ERROR: ${err.message}`);
+    log(connId, `ERROR: ${err.message}`);
   });
 }
 

@@ -1,0 +1,25 @@
+{
+  "name": "mudpot",
+  "version": "1.0.0",
+  "description": "A honeypot disguised as a text-based MUD (Multi-User Dungeon). It listens on a configurable TCP port and lures network scanners into exploring a fake server environment, wasting their time while logging everything they do.",
+  "main": "game.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swax/mudpot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/swax/mudpot/issues"
+  },
+  "homepage": "https://github.com/swax/mudpot#readme",
+  "devDependencies": {
+    "prettier": "^3.8.2"
+  }
+}

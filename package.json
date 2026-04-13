@@ -1,11 +1,14 @@
 {
   "name": "mudpot",
   "version": "1.0.0",
-  "description": "A honeypot disguised as a text-based MUD (Multi-User Dungeon). It listens on a configurable TCP port and lures network scanners into exploring a fake server environment, wasting their time while logging everything they do.",
-  "main": "game.js",
+  "description": "A honeypot and MUD combined. Give weary humans, AI's and bots a break from the usual grind of scanning networks.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "test": "node test.js",
+    "start": "node server.js",
+    "lint": "eslint *.js",
+    "lint:fix": "eslint --fix *.js",
+    "format": "prettier --write *.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +23,15 @@
   },
   "homepage": "https://github.com/swax/mudpot#readme",
   "devDependencies": {
-    "prettier": "^3.8.2"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.6.0",
+    "@types/ssh2": "^1.15.5",
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.2",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1"
+  },
+  "dependencies": {
+    "ssh2": "^1.17.0"
   }
 }

@@ -1,5 +1,7 @@
 .env
 node_modules/
 host_key
+tls_cert.pem
+tls_key.pem
 *.log
 

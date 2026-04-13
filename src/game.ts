@@ -65,29 +65,6 @@ export function handleInput(session: Session, raw: string): string {
   const cmd = parts[0];
   const arg = parts.slice(1).join(" ").replace(/['"]/g, "");
 
-  // Recon commands — station responses for common scanner probes
-  const reconResponses: Record<string, string> = {
-    "whoami":
-      "\nvisitor_unregistered — the station knows what you are, even if you do not.\n\n",
-    "uname -a":
-      "\nGreySector 4.2.0-ancient #1 SMP PREEMPT Babylon/5 substrate_unknown aarch_organic\n\n",
-    "uname":
-      "\nGreySector — the name was here before the station was built around it.\n\n",
-    "cat /etc/os-release":
-      '\nNAME="Grey Sector"\nVERSION="older than memory"\nID=babylon\nPRETTY_NAME="Grey Sector (Lower Levels)"\nHOME_URL="not applicable"\nBUG_REPORT_URL="the vorlons do not accept bug reports"\n\n',
-    "uptime":
-      "\n 00:00:00 up 1463820 days, 0 users, load average: watching, waiting, remembering\n\n",
-    "ls /":
-      "\nbin  dev  etc  grey_sector  lost+found  proc  shadows  sys  tmp  vorlons\n\n",
-    "lscpu":
-      "\nArchitecture:        organic\nCPU(s):              unknown\nModel name:          First Ones substrate (deprecated)\nFrequency:           the signal predates your instruments\n\n",
-    "df -h":
-      "\nFilesystem      Size   Used  Avail  Use%  Mounted on\n/dev/sector     ???    47%   ???    47%   /grey\nthe_vorlons     ∞      0%    ∞      0%    /truth\nthe_shadows     ∞      ∞     0      100%  /what_do_you_want\n\n",
-  };
-
-  const reconResponse = reconResponses[input];
-  if (reconResponse) return reconResponse;
-
   switch (cmd) {
     case "help":
     case "?":
@@ -265,16 +242,41 @@ export function handleInput(session: Session, raw: string): string {
     case "q":
       return "QUIT";
 
+    // Recon probes — the station responds in its own way
+    case "whoami":
+      return "\nYou catch your reflection in a dark panel on the wall. For a moment, it doesn't move when you do.\n\n";
+    case "uname":
+      return "\nThe corridor hums faintly. The station doesn't answer to names down here.\n\n";
+    case "lscpu":
+      return "\nYou press your ear to the wall. Something hums beneath the metal — not machinery. Something older.\n\n";
     case "ls":
-      return "\nThe corridor stretches in both directions. Try 'look' to survey your surroundings.\n\n";
+      return "\nShadows pool between the emergency strips. Try 'look' to survey your surroundings.\n\n";
     case "pwd":
       return "\nSomewhere in Grey Sector. The station directory on the wall is too faded to read.\n\n";
     case "id":
       return "\nYour station ident reads: VISITOR — UNRESTRICTED TRANSIT — LEVEL GREY\n\n";
     case "uptime":
-      return "\n 00:00:00 up 1463820 days, 0 users, load average: watching, waiting, remembering\n\n";
+      return "\nThe emergency lights have been running for as long as anyone can remember. No one recalls who turned them on.\n\n";
     case "df":
-      return "\nFilesystem      Size   Used  Avail  Use%  Mounted on\n/dev/sector     ???    47%   ???    47%   /grey\n\n";
+      return "\nThe station's resource panels down here went dark long ago. Whatever powers Grey Sector, it isn't drawing from the main grid.\n\n";
+    case "hostname":
+      return "\nA faded placard on the wall reads: G-SECTOR-LWR. The rest has been scratched away.\n\n";
+    case "ps":
+      return "\nYou hold still and listen. Footsteps — or maybe just the ventilation cycling. Something is moving down here, but it isn't on any manifest.\n\n";
+    case "netstat":
+      return "\nThe comm panel on the wall is dark. No active connections this far down.\n\n";
+    case "mount":
+      return "\nThe conduit junctions overhead are fused in place. Nothing detaches down here.\n\n";
+    case "history":
+      return "\nThe walls remember. You just can't read them yet.\n\n";
+    case "cd":
+      return "\nThe corridors don't bend to that kind of command. Try 'go' to move.\n\n";
+    case "chmod":
+    case "chattr":
+    case "mkdir":
+      return "\nNothing here yields to that kind of authority.\n\n";
+    case "echo":
+      return "\nYour voice carries down the corridor and comes back changed.\n\n";
     case "sudo":
       return "\nThat authority doesn't reach this deep.\n\n";
     case "wget":

@@ -256,7 +256,7 @@ function escHtml($s) {
         .bar-label { color: #888; min-width: 100px; display: inline-block; }
         .bar-count { color: #666; margin-left: 8px; }
 
-        .cmd { color: #aaa; }
+        .cmd { color: #aaa; word-break: break-all; }
         .ip { color: #6a6; }
         .room { color: #aa6; }
         .vault { color: #4a4; font-weight: bold; }

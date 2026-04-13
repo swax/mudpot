@@ -27,7 +27,7 @@ foreach ($lines as $line) {
     if ($ip === 'SYSTEM') continue;
     if ($ip === '::1') continue; // skip localhost test sessions
 
-    if (preg_match('/^CONNECTED(?: port=(\d+))?$/', $msg, $connMatch)) {
+    if (preg_match('/^(?:SSH )?CONNECTED(?: port=(\d+))?$/', $msg, $connMatch)) {
         $port = $connMatch[1] ?? null;
         // Finalize any existing session for this IP to handle overlapping connections
         if (isset($current[$ip])) {
@@ -73,11 +73,11 @@ foreach ($lines as $line) {
         if ($msg === 'VICTORY') {
             $current[$ip]['victory'] = true;
         }
-        if (preg_match('/^KICKED: (.+)$/', $msg, $km)) {
+        if (preg_match('/^(?:SSH )?KICKED: (.+)$/', $msg, $km)) {
             $current[$ip]['kicked'] = true;
             $current[$ip]['kick_reason'] = $km[1];
         }
-        if (strpos($msg, 'DISCONNECTED') === 0 || $msg === 'QUIT' || $msg === 'TIMEOUT') {
+        if (preg_match('/^(?:SSH )?DISCONNECTED/', $msg) || preg_match('/^(?:SSH )?(?:QUIT|TIMEOUT)$/', $msg)) {
             $sess = $current[$ip];
             $start = strtotime($sess['start']);
             $end = strtotime($sess['end']);

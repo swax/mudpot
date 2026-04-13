@@ -131,7 +131,7 @@ foreach ($sessions as $s) {
     }
 }
 arsort($allCmds);
-$topCmds = array_slice($allCmds, 0, 15, true);
+$topCmds = array_slice($allCmds, 0, 20, true);
 
 // Port distribution
 $portDist = [];

@@ -99,6 +99,64 @@ function startSSH({
           let cmdCount = 0;
           let cmdWindowStart = Date.now();
           let escapeState = 0; // 0=normal, 1=saw ESC, 2=saw ESC[
+          const cmdQueue: string[] = [];
+          let processingCmd = false;
+
+          function processNext(): void {
+            if (processingCmd || cmdQueue.length === 0 || stream.destroyed) return;
+            processingCmd = true;
+
+            const line = cmdQueue.shift()!;
+
+            const now = Date.now();
+            if (now - cmdWindowStart > 60000) {
+              cmdCount = 0;
+              cmdWindowStart = now;
+            }
+            cmdCount++;
+            if (cmdCount > maxCmdsPerMin) {
+              log(connId, "SSH KICKED: rate limit");
+              sshWrite(
+                stream,
+                "\nThe station does not respond well to haste. Connection closed.\n",
+              );
+              stream.end();
+              client.end();
+              return;
+            }
+
+            const response = handleInput(session!, line);
+            if (response === "QUIT") {
+              log(connId, "SSH QUIT");
+              sshWrite(
+                stream,
+                "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
+              );
+              stream.end();
+              client.end();
+              return;
+            }
+
+            if (response.startsWith("VICTORY")) {
+              const text = response.slice("VICTORY".length);
+              setTimeout(() => {
+                sshWrite(stream, text);
+                stream.end();
+                client.end();
+              }, 500 + Math.floor(Math.random() * 1000));
+              return;
+            }
+
+            setTimeout(() => {
+              if (stream.destroyed) return;
+              sshWrite(stream, response);
+              if (session!.inputMode !== "puzzle") {
+                stream.write("> ");
+              }
+              processingCmd = false;
+              processNext();
+            }, 500 + Math.floor(Math.random() * 1000));
+          }
 
           stream.on("data", (data: Buffer) => {
             for (let i = 0; i < data.length; i++) {
@@ -137,52 +195,8 @@ function startSSH({
                 const line = lineBuffer.substring(0, maxLine);
                 lineBuffer = "";
 
-                const now = Date.now();
-                if (now - cmdWindowStart > 60000) {
-                  cmdCount = 0;
-                  cmdWindowStart = now;
-                }
-                cmdCount++;
-                if (cmdCount > maxCmdsPerMin) {
-                  log(connId, "SSH KICKED: rate limit");
-                  sshWrite(
-                    stream,
-                    "\nThe station does not respond well to haste. Connection closed.\n",
-                  );
-                  stream.end();
-                  client.end();
-                  return;
-                }
-
-                const response = handleInput(session!, line);
-                if (response === "QUIT") {
-                  log(connId, "SSH QUIT");
-                  sshWrite(
-                    stream,
-                    "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
-                  );
-                  stream.end();
-                  client.end();
-                  return;
-                }
-
-                if (response.startsWith("VICTORY")) {
-                  const text = response.slice("VICTORY".length);
-                  setTimeout(() => {
-                    sshWrite(stream, text);
-                    stream.end();
-                    client.end();
-                  }, 500 + Math.floor(Math.random() * 1000));
-                  return;
-                }
-
-                setTimeout(() => {
-                  if (stream.destroyed) return;
-                  sshWrite(stream, response);
-                  if (session!.inputMode !== "puzzle") {
-                    stream.write("> ");
-                  }
-                }, 500 + Math.floor(Math.random() * 1000));
+                cmdQueue.push(line);
+                processNext();
                 continue;
               }
 

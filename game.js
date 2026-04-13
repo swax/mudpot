@@ -227,6 +227,30 @@ function handleInput(session, raw) {
     case 'ssh':
       return '\nYou\'re already deeper than most people go.\n\n';
 
+    // Common bot credentials — the station reacts to intruders
+    case 'root':
+      return '\nThe roots of this station go deeper than you know. You are not one of them.\n\n';
+    case 'admin':
+      return '\nStation administration is three levels up in Blue Sector. You\'re in the wrong corridor.\n\n';
+    case 'super':
+      return '\nThere are no superiors down here. Grey Sector answers to no one.\n\n';
+    case 'ubnt':
+      return '\nThat frequency hasn\'t been used since the comm relays were decommissioned.\n\n';
+    case 'keomeo':
+      return '\nA word in a dialect the station translator doesn\'t recognize. The walls hum faintly.\n\n';
+    case '!!huawei':
+      return '\nEmergency override rejected. This section operates outside normal command authority.\n\n';
+    case 'user':
+      return '\nThe station knows what you are. The question is whether you know where you are.\n\n';
+    case 'telnet':
+      return '\nYou\'re already speaking to the station. It has been listening since you arrived.\n\n';
+    case 'e8telnet':
+      return '\nAn old comm protocol echoes through the corridor and fades. The station does not respond.\n\n';
+    case 'e8ehome1':
+      return '\nHome is very far from here. No one comes to Grey Sector by accident.\n\n';
+    case 'guest':
+      return '\nGuest quarters are on the upper levels. Down here, everyone is either lost or looking.\n\n';
+
     default:
       return `\nI don\'t understand "${cmd}". Type \x1b[1mhelp\x1b[0m for commands.\n\n`;
   }

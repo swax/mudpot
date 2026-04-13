@@ -104,28 +104,23 @@ function onConnection(socket) {
         socket.end('\nYou find your way back to the upper levels. The station hums quietly behind you.\n');
         return;
       }
+
       if (response.startsWith('VICTORY')) {
         const text = response.slice('VICTORY'.length);
-        const delay = 500 + Math.floor(Math.random() * 1000);
-        setTimeout(function() {
-          if (socket.destroyed) return;
-          socket.end(text);
-        }, delay);
+        setTimeout(() => {
+          if (!socket.destroyed) socket.end(text);
+        }, 500 + Math.floor(Math.random() * 1000));
         return;
       }
 
-      // Random delay 500-1500ms — feels like the station is thinking
-      const delay = 500 + Math.floor(Math.random() * 1000);
-      setTimeout(function() {
+      // Delay response — feels like the station is thinking
+      setTimeout(() => {
         if (socket.destroyed) return;
         socket.write(response);
-
-        if (session.inputMode === 'puzzle') {
-          // prompt already sent in response
-        } else {
+        if (session.inputMode !== 'puzzle') {
           socket.write('> ');
         }
-      }, delay);
+      }, 500 + Math.floor(Math.random() * 1000));
     }
   });
 

@@ -1,7 +1,12 @@
 const net = require("net");
+const tls = require("tls");
+const { execSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 const log = require("./log");
 const { createSession, look, handleInput } = require("./game");
 const handleScanner = require("./scanner");
+const startSSH = require("./ssh");
 
 const BANNER = `
 \x1b[1;34m╔══════════════════════════════════════════════════════════════╗
@@ -21,15 +26,42 @@ const BANNER = `
 const PORTS = (process.env.MUDPOT_PORT || "2222")
   .split(",")
   .map((p) => parseInt(p.trim(), 10));
+const TLS_PORTS = (process.env.MUDPOT_TLS_PORT || "")
+  .split(",")
+  .map((p) => parseInt(p.trim(), 10))
+  .filter((p) => !isNaN(p));
 const MAX_CONNECTIONS = 20;
-let connectionCount = 0;
+const MAX_BUFFER = 4096;
+const MAX_LINE = 256;
+const MAX_CMDS_PER_MIN = 60;
+const connections = { count: 0 };
+
+function getTlsCert() {
+  const certPath = path.join(__dirname, "tls_cert.pem");
+  const keyPath = path.join(__dirname, "tls_key.pem");
+  try {
+    return {
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+    };
+  } catch {
+    execSync(
+      `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 3650 -nodes -subj "/CN=BabylonStation"`,
+    );
+    fs.chmodSync(keyPath, 0o600);
+    return {
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+    };
+  }
+}
 
 function onConnection(socket) {
-  if (connectionCount >= MAX_CONNECTIONS) {
+  if (connections.count >= MAX_CONNECTIONS) {
     socket.end("The lower levels are too crowded tonight. Try again later.\n");
     return;
   }
-  connectionCount++;
+  connections.count++;
 
   const ip = (socket.remoteAddress || "unknown").replace("::ffff:", "");
   const port = socket.localPort;
@@ -42,15 +74,11 @@ function onConnection(socket) {
   socket.write(look(session));
   socket.write("\n> ");
 
-  socket.setTimeout(300000); // 5 min idle timeout
+  socket.setTimeout(60000); // 1 min idle timeout
 
   let buffer = "";
   let cmdCount = 0;
   let cmdWindowStart = Date.now();
-  const MAX_BUFFER = 4096;
-  const MAX_LINE = 256;
-  const MAX_CMDS_PER_MIN = 60;
-
   socket.on("data", (data) => {
     if (handleScanner(data, ip, socket, scannerState)) return;
 
@@ -148,7 +176,7 @@ function onConnection(socket) {
   });
 
   socket.on("close", () => {
-    connectionCount--;
+    connections.count--;
     log(
       ip,
       `DISCONNECTED (visited: ${session.room}, inventory: [${session.inventory.join(", ")}])`,
@@ -165,4 +193,23 @@ PORTS.forEach((port) => {
     console.log(`Grey Sector listening on port ${port}`);
     log("SYSTEM", `Server started on port ${port}`);
   });
+});
+
+if (TLS_PORTS.length > 0) {
+  const tlsCert = getTlsCert();
+  TLS_PORTS.forEach((port) => {
+    tls.createServer(tlsCert, onConnection).listen(port, () => {
+      console.log(`Grey Sector TLS listening on port ${port}`);
+      log("SYSTEM", `TLS server started on port ${port}`);
+    });
+  });
+}
+
+startSSH({
+  banner: BANNER,
+  connections,
+  maxConnections: MAX_CONNECTIONS,
+  maxLine: MAX_LINE,
+  maxCmdsPerMin: MAX_CMDS_PER_MIN,
+  idleTimeout: 60000,
 });

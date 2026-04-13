@@ -1,13 +1,12 @@
-const { createSession, handleInput, look } = require("./game");
+// Suppress logging during tests — must be set before importing game
+process.env.MUDPOT_LOG = "/dev/null";
 
-// Suppress logging during tests
-require("./log");
-require.cache[require.resolve("./log")].exports = function () {};
+import { createSession, handleInput, look } from "./game";
 
 let failed = 0;
 let passed = 0;
 
-function assert(condition, msg) {
+function assert(condition: boolean, msg: string): void {
   if (!condition) {
     console.error(`  FAIL: ${msg}`);
     failed++;
@@ -17,11 +16,11 @@ function assert(condition, msg) {
   }
 }
 
-function assertIncludes(str, substr, msg) {
+function assertIncludes(str: string, substr: string, msg?: string): void {
   assert(str.includes(substr), msg || `expected output to include "${substr}"`);
 }
 
-function assertNotIncludes(str, substr, msg) {
+function assertNotIncludes(str: string, substr: string, msg?: string): void {
   assert(
     !str.includes(substr),
     msg || `expected output not to include "${substr}"`,
@@ -29,7 +28,7 @@ function assertNotIncludes(str, substr, msg) {
 }
 
 // Strip ANSI escape codes for easier matching
-function strip(str) {
+function strip(str: string): string {
   // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }

@@ -1,14 +1,16 @@
-const log = require("./log");
+import net from "net";
+import log from "./log";
+import { ScannerState } from "./types";
 
-const thinkDelay = () => 500 + Math.floor(Math.random() * 1000);
+const thinkDelay = (): number => 500 + Math.floor(Math.random() * 1000);
 
-function delayedWrite(socket, msg) {
+function delayedWrite(socket: net.Socket, msg: string): void {
   setTimeout(() => {
     if (!socket.destroyed) socket.write(msg);
   }, thinkDelay());
 }
 
-function delayedEnd(socket, msg) {
+function delayedEnd(socket: net.Socket, msg: string): void {
   setTimeout(() => {
     if (!socket.destroyed) socket.end(msg);
   }, thinkDelay());
@@ -16,7 +18,12 @@ function delayedEnd(socket, msg) {
 
 // Detect non-MUD protocols and handle them.
 // Returns true if the data was handled (caller should skip MUD processing).
-function handleScanner(data, ip, socket, state) {
+function handleScanner(
+  data: Buffer,
+  ip: string,
+  socket: net.Socket,
+  state: ScannerState,
+): boolean {
   if (!state.identified) {
     state.identified = true;
     const probe = data.toString().split("\n")[0].replace(/\r/g, "").trim();
@@ -117,4 +124,4 @@ function handleScanner(data, ip, socket, state) {
   return false;
 }
 
-module.exports = handleScanner;
+export default handleScanner;

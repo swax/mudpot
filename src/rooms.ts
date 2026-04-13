@@ -1,4 +1,6 @@
-const rooms = {
+import { Room } from "./types";
+
+const rooms: Record<string, Room> = {
   lobby: {
     name: "Junction G-17",
     desc: `You stand at a junction where three maintenance corridors meet in the lower
@@ -202,4 +204,4 @@ The recording ends. The crystal dims.`,
   },
 };
 
-module.exports = rooms;
+export default rooms;

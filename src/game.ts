@@ -1,27 +1,28 @@
-const log = require("./log");
-const rooms = require("./rooms");
+import log from "./log";
+import rooms from "./rooms";
+import { Room, Session } from "./types";
 
-function tryUnlock(session, room, dir) {
+function tryUnlock(session: Session, room: Room, dir: string): string {
   if (room.puzzle && !room.puzzleSolved) {
     session.inputMode = "puzzle";
     return "puzzle";
   }
-  room.exits[dir] = room.locked[dir];
-  delete room.locked[dir];
+  room.exits[dir] = room.locked![dir];
+  delete room.locked![dir];
   return "unlocked";
 }
 
-function createSession(ip) {
+export function createSession(ip: string): Session {
   return {
     room: "lobby",
     inventory: [],
     ip,
-    inputMode: "normal", // 'normal' or 'puzzle'
+    inputMode: "normal",
     rooms: JSON.parse(JSON.stringify(rooms)),
   };
 }
 
-function look(session) {
+export function look(session: Session): string {
   const room = session.rooms[session.room];
   let text = `\n\x1b[1;33m${room.name}\x1b[0m\n${room.desc}\n`;
 
@@ -35,7 +36,7 @@ function look(session) {
   return text;
 }
 
-function handleInput(session, raw) {
+export function handleInput(session: Session, raw: string): string {
   const input = raw.trim().toLowerCase();
   if (!input) return "";
 
@@ -47,9 +48,9 @@ function handleInput(session, raw) {
     if (input.replace(/\s+/g, "") === room.puzzleAnswer) {
       room.puzzleSolved = true;
       // Unlock the door
-      const dir = Object.keys(room.locked)[0];
-      room.exits[dir] = room.locked[dir];
-      delete room.locked[dir];
+      const dir = Object.keys(room.locked!)[0];
+      room.exits[dir] = room.locked![dir];
+      delete room.locked![dir];
       session.inputMode = "normal";
       return `\n\x1b[1;32m${room.puzzleSuccess}\x1b[0m\n\n`;
     } else if (input === "quit" || input === "back" || input === "cancel") {
@@ -99,7 +100,7 @@ function handleInput(session, raw) {
     case "w":
     case "u":
     case "d": {
-      const dirMap = {
+      const dirMap: Record<string, string> = {
         n: "north",
         s: "south",
         e: "east",
@@ -289,5 +290,3 @@ function handleInput(session, raw) {
       return `\nI don't understand "${cmd}". Type \x1b[1mhelp\x1b[0m for commands.\n\n`;
   }
 }
-
-module.exports = { createSession, look, handleInput };

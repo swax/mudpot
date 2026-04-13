@@ -1,12 +1,13 @@
-const net = require("net");
-const tls = require("tls");
-const { execSync } = require("child_process");
-const fs = require("fs");
-const path = require("path");
-const log = require("./log");
-const { createSession, look, handleInput } = require("./game");
-const handleScanner = require("./scanner");
-const startSSH = require("./ssh");
+import net from "net";
+import tls from "tls";
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import log from "./log";
+import { createSession, look, handleInput } from "./game";
+import handleScanner from "./scanner";
+import startSSH from "./ssh";
+import { ScannerState } from "./types";
 
 const BANNER = `
 \x1b[1;34m╔══════════════════════════════════════════════════════════════╗
@@ -36,7 +37,7 @@ const MAX_LINE = 256;
 const MAX_CMDS_PER_MIN = 60;
 const connections = { count: 0 };
 
-function getTlsCert() {
+function getTlsCert(): { cert: Buffer; key: Buffer } {
   const certPath = path.join(__dirname, "tls_cert.pem");
   const keyPath = path.join(__dirname, "tls_key.pem");
   try {
@@ -56,7 +57,7 @@ function getTlsCert() {
   }
 }
 
-function onConnection(socket) {
+function onConnection(socket: net.Socket): void {
   if (connections.count >= MAX_CONNECTIONS) {
     socket.end("The lower levels are too crowded tonight. Try again later.\n");
     return;
@@ -66,7 +67,7 @@ function onConnection(socket) {
   const ip = (socket.remoteAddress || "unknown").replace("::ffff:", "");
   const port = socket.localPort;
   const session = createSession(ip);
-  const scannerState = { identified: false, mode: null };
+  const scannerState: ScannerState = { identified: false, mode: null };
 
   log(ip, `CONNECTED port=${port}`);
 
@@ -79,7 +80,7 @@ function onConnection(socket) {
   let buffer = "";
   let cmdCount = 0;
   let cmdWindowStart = Date.now();
-  socket.on("data", (data) => {
+  socket.on("data", (data: Buffer) => {
     if (handleScanner(data, ip, socket, scannerState)) return;
 
     // Handle Ctrl+C (raw 0x03), Ctrl+D (0x04), or telnet IAC IP (0xFF 0xF4)
@@ -183,7 +184,7 @@ function onConnection(socket) {
     );
   });
 
-  socket.on("error", (err) => {
+  socket.on("error", (err: Error) => {
     log(ip, `ERROR: ${err.message}`);
   });
 }

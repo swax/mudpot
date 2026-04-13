@@ -71,9 +71,18 @@ function onConnection(socket: net.Socket): void {
 
   log(ip, `CONNECTED port=${port}`);
 
-  socket.write(BANNER);
-  socket.write(look(session));
-  socket.write("\n> ");
+  // Wait briefly for the client to speak first so we can identify
+  // non-MUD protocols (HTTP, FTP, SSH, TLS) before sending the banner.
+  // Scanners send data immediately; MUD/telnet clients wait for the server.
+  let greeted = false;
+  const greetTimer = setTimeout(() => {
+    if (!greeted && !socket.destroyed) {
+      greeted = true;
+      socket.write(BANNER);
+      socket.write(look(session));
+      socket.write("\n> ");
+    }
+  }, 500);
 
   socket.setTimeout(60000); // 1 min idle timeout
 
@@ -81,7 +90,19 @@ function onConnection(socket: net.Socket): void {
   let cmdCount = 0;
   let cmdWindowStart = Date.now();
   socket.on("data", (data: Buffer) => {
-    if (handleScanner(data, ip, socket, scannerState)) return;
+    if (handleScanner(data, ip, socket, scannerState)) {
+      clearTimeout(greetTimer);
+      return;
+    }
+
+    // Not a known protocol - greet as MUD client if we haven't yet
+    if (!greeted) {
+      greeted = true;
+      clearTimeout(greetTimer);
+      socket.write(BANNER);
+      socket.write(look(session));
+      socket.write("\n> ");
+    }
 
     // Handle Ctrl+C (raw 0x03), Ctrl+D (0x04), or telnet IAC IP (0xFF 0xF4)
     if (data.includes(0x03) || data.includes(0x04) || data.includes(0xf4)) {
@@ -177,6 +198,7 @@ function onConnection(socket: net.Socket): void {
   });
 
   socket.on("close", () => {
+    clearTimeout(greetTimer);
     connections.count--;
     log(
       ip,

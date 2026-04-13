@@ -230,7 +230,7 @@ function handleInput(session, raw) {
           }
           return `\n\x1b[1;32m${unlockText}\x1b[0m\n\n`;
         }
-        return `\nYou can\'t use the ${arg} here.\n\n`;
+        return `\nYou can't use the ${arg} here.\n\n`;
       }
       return "\nYou don't have that.\n\n";
     }
@@ -286,7 +286,7 @@ function handleInput(session, raw) {
       return "\nGuest quarters are on the upper levels. Down here, everyone is either lost or looking.\n\n";
 
     default:
-      return `\nI don\'t understand "${cmd}". Type \x1b[1mhelp\x1b[0m for commands.\n\n`;
+      return `\nI don't understand "${cmd}". Type \x1b[1mhelp\x1b[0m for commands.\n\n`;
   }
 }
 

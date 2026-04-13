@@ -9,7 +9,9 @@ function log(ip, msg) {
     if (stats.size > MAX_LOG_SIZE) {
       fs.renameSync(LOG_FILE, LOG_FILE + ".1");
     }
-  } catch (e) {}
+  } catch (_e) {
+    // File may not exist yet, that's fine
+  }
   const line = `${new Date().toISOString()} [${ip}] ${msg}\n`;
   fs.appendFileSync(LOG_FILE, line);
 }

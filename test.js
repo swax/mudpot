@@ -1,8 +1,7 @@
 const { createSession, handleInput, look } = require("./game");
 
 // Suppress logging during tests
-const log = require("./log");
-const origLog = log;
+require("./log");
 require.cache[require.resolve("./log")].exports = function () {};
 
 let failed = 0;
@@ -31,6 +30,7 @@ function assertNotIncludes(str, substr, msg) {
 
 // Strip ANSI escape codes for easier matching
 function strip(str) {
+  // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 

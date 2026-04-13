@@ -90,6 +90,65 @@ function onConnection(socket: net.Socket): void {
   let buffer = "";
   let cmdCount = 0;
   let cmdWindowStart = Date.now();
+  const cmdQueue: string[] = [];
+  let processingCmd = false;
+
+  function processNext(): void {
+    if (processingCmd || cmdQueue.length === 0 || socket.destroyed) return;
+    processingCmd = true;
+
+    const line = cmdQueue.shift()!;
+
+    // Rate limit commands
+    const now = Date.now();
+    if (now - cmdWindowStart > 60000) {
+      cmdCount = 0;
+      cmdWindowStart = now;
+    }
+    cmdCount++;
+    if (cmdCount > MAX_CMDS_PER_MIN) {
+      log(connId, "KICKED: rate limit");
+      socket.end(
+        "\nThe station does not respond well to haste. Connection closed.\n",
+      );
+      return;
+    }
+
+    const response = handleInput(session, line);
+    if (response === "QUIT") {
+      log(connId, "QUIT");
+      socket.end(
+        "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
+      );
+      return;
+    }
+
+    if (response.startsWith("VICTORY")) {
+      const text = response.slice("VICTORY".length);
+      setTimeout(
+        () => {
+          if (!socket.destroyed) socket.end(text);
+        },
+        500 + Math.floor(Math.random() * 1000),
+      );
+      return;
+    }
+
+    // Delay response — feels like the station is thinking
+    setTimeout(
+      () => {
+        if (socket.destroyed) return;
+        socket.write(response);
+        if (session.inputMode !== "puzzle") {
+          socket.write("> ");
+        }
+        processingCmd = false;
+        processNext();
+      },
+      500 + Math.floor(Math.random() * 1000),
+    );
+  }
+
   socket.on("data", (data: Buffer) => {
     if (handleScanner(data, connId, socket, scannerState)) {
       clearTimeout(greetTimer);
@@ -142,53 +201,9 @@ function onConnection(socket: net.Socket): void {
         line = line.substring(0, MAX_LINE);
       }
 
-      // Rate limit commands
-      const now = Date.now();
-      if (now - cmdWindowStart > 60000) {
-        cmdCount = 0;
-        cmdWindowStart = now;
-      }
-      cmdCount++;
-      if (cmdCount > MAX_CMDS_PER_MIN) {
-        log(connId, "KICKED: rate limit");
-        socket.end(
-          "\nThe station does not respond well to haste. Connection closed.\n",
-        );
-        return;
-      }
-
-      const response = handleInput(session, line);
-      if (response === "QUIT") {
-        log(connId, "QUIT");
-        socket.end(
-          "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
-        );
-        return;
-      }
-
-      if (response.startsWith("VICTORY")) {
-        const text = response.slice("VICTORY".length);
-        setTimeout(
-          () => {
-            if (!socket.destroyed) socket.end(text);
-          },
-          500 + Math.floor(Math.random() * 1000),
-        );
-        return;
-      }
-
-      // Delay response — feels like the station is thinking
-      setTimeout(
-        () => {
-          if (socket.destroyed) return;
-          socket.write(response);
-          if (session.inputMode !== "puzzle") {
-            socket.write("> ");
-          }
-        },
-        500 + Math.floor(Math.random() * 1000),
-      );
+      cmdQueue.push(line);
     }
+    processNext();
   });
 
   socket.on("timeout", () => {

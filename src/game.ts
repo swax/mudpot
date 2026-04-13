@@ -65,6 +65,29 @@ export function handleInput(session: Session, raw: string): string {
   const cmd = parts[0];
   const arg = parts.slice(1).join(" ").replace(/['"]/g, "");
 
+  // Recon commands — station responses for common scanner probes
+  const reconResponses: Record<string, string> = {
+    "whoami":
+      "\nvisitor_unregistered — the station knows what you are, even if you do not.\n\n",
+    "uname -a":
+      "\nGreySector 4.2.0-ancient #1 SMP PREEMPT Babylon/5 substrate_unknown aarch_organic\n\n",
+    "uname":
+      "\nGreySector — the name was here before the station was built around it.\n\n",
+    "cat /etc/os-release":
+      '\nNAME="Grey Sector"\nVERSION="older than memory"\nID=babylon\nPRETTY_NAME="Grey Sector (Lower Levels)"\nHOME_URL="not applicable"\nBUG_REPORT_URL="the vorlons do not accept bug reports"\n\n',
+    "uptime":
+      "\n 00:00:00 up 1463820 days, 0 users, load average: watching, waiting, remembering\n\n",
+    "ls /":
+      "\nbin  dev  etc  grey_sector  lost+found  proc  shadows  sys  tmp  vorlons\n\n",
+    "lscpu":
+      "\nArchitecture:        organic\nCPU(s):              unknown\nModel name:          First Ones substrate (deprecated)\nFrequency:           the signal predates your instruments\n\n",
+    "df -h":
+      "\nFilesystem      Size   Used  Avail  Use%  Mounted on\n/dev/sector     ???    47%   ???    47%   /grey\nthe_vorlons     ∞      0%    ∞      0%    /truth\nthe_shadows     ∞      ∞     0      100%  /what_do_you_want\n\n",
+  };
+
+  const reconResponse = reconResponses[input];
+  if (reconResponse) return reconResponse;
+
   switch (cmd) {
     case "help":
     case "?":
@@ -246,12 +269,12 @@ export function handleInput(session: Session, raw: string): string {
       return "\nThe corridor stretches in both directions. Try 'look' to survey your surroundings.\n\n";
     case "pwd":
       return "\nSomewhere in Grey Sector. The station directory on the wall is too faded to read.\n\n";
-    case "whoami":
-      return "\nA wanderer. You came down here for a reason, even if you've forgotten what it was.\n\n";
     case "id":
       return "\nYour station ident reads: VISITOR — UNRESTRICTED TRANSIT — LEVEL GREY\n\n";
-    case "uname":
-      return "\nBabylon Station — Grey Sector — Lower Levels\n\n";
+    case "uptime":
+      return "\n 00:00:00 up 1463820 days, 0 users, load average: watching, waiting, remembering\n\n";
+    case "df":
+      return "\nFilesystem      Size   Used  Avail  Use%  Mounted on\n/dev/sector     ???    47%   ???    47%   /grey\n\n";
     case "sudo":
       return "\nThat authority doesn't reach this deep.\n\n";
     case "wget":

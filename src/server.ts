@@ -149,16 +149,40 @@ function onConnection(socket: net.Socket): void {
       socket.write("\n> ");
     }
 
+    // Strip telnet IAC sequences before checking for control characters.
+    // IAC sequences are 0xFF followed by a command byte (and sometimes an
+    // option byte). Without stripping, option bytes like 0x03 or 0x04
+    // (Suppress-Go-Ahead, Approx-Message-Size) trigger false quit detection.
+    const stripped = Buffer.from(
+      Array.from(data).filter((_, i) => {
+        if (data[i - 1] === 0xff) return false; // command byte after IAC
+        if (data[i - 2] === 0xff && data[i - 2 + 1] >= 0xfa && data[i - 2 + 1] <= 0xfe)
+          return false; // option byte after WILL/WONT/DO/DONT/SB
+        if (data[i] === 0xff && i + 1 < data.length) return false; // IAC byte itself
+        return true;
+      }),
+    );
+
     // Handle Ctrl+C (raw 0x03), Ctrl+D (0x04), or telnet IAC IP (0xFF 0xF4)
-    if (data.includes(0x03) || data.includes(0x04) || data.includes(0xf4)) {
+    if (stripped.includes(0x03) || stripped.includes(0x04)) {
       log(connId, "QUIT");
       socket.end(
         "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
       );
       return;
     }
+    // Check for IAC IP (0xFF 0xF4) in the original data as a proper 2-byte sequence
+    for (let i = 0; i < data.length - 1; i++) {
+      if (data[i] === 0xff && data[i + 1] === 0xf4) {
+        log(connId, "QUIT");
+        socket.end(
+          "\nYou find your way back to the upper levels. The station hums quietly behind you.\n",
+        );
+        return;
+      }
+    }
 
-    buffer += data.toString();
+    buffer += stripped.toString();
 
     // Drop connection if buffer grows too large (no newline flood)
     if (buffer.length > MAX_BUFFER) {

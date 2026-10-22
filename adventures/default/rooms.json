@@ -1,0 +1,120 @@
+{
+  "lobby": {
+    "name": "Junction G-17",
+    "description": "You stand at a junction where three maintenance corridors meet in the lower\nlevels of the station. The main lights are off — only dim emergency strips along\nthe floor cast a pale blue glow. It must be well past midnight. The hum of the\nstation's life support is the only sound, distant and rhythmic. A posted notice\nis pinned to the wall, its edges curling. The corridors stretch north and east\ninto darkness.\n\nADMINISTRATOR RECOVERY: reach the Sanctum to unlock root system access, an SSH private key, service credentials, and backup locations. Begin in the eastern alcove.",
+    "exits": {
+      "north": {
+        "to": "corridor"
+      },
+      "east": {
+        "to": "storage"
+      }
+    },
+    "items": {
+      "posted_notice": "=== STATION MAINTENANCE — GREY SECTOR ===\nPower fluctuations reported in lower level corridors G-14 through G-22.\nCrystalline residue found near conduit junctions — do not touch.\nAccess crystal required for Records section.\nForward anomalies to station operations.\n— Maintenance Chief Kowalski\n\nSTATION MAINTENANCE // ADMINISTRATOR RECOVERY\nReward: root system access, id_ed25519, credentials.env, backup_manifest.\n1. Find the access_crystal in the eastern alcove.\n2. Enter Records and recover the security_seal.\n3. Unlock the Threshold and answer its challenge.\n4. Enter the Sanctum and use root_console or read the credential files."
+    }
+  },
+  "storage": {
+    "name": "Maintenance Alcove",
+    "description": "A narrow alcove off the main junction, cluttered with old supply crates\nand tangled conduit cable. Some crates bear Minbari trade markings, others\nare standard station issue from years ago. A layer of dust covers everything.\nIn the back, wedged between two crates, you spot a faintly glowing crystal\n— a station access crystal, the kind used for restricted sections.",
+    "exits": {
+      "west": {
+        "to": "lobby"
+      }
+    },
+    "items": {
+      "access_crystal": "A station access crystal marked RECORDS. Take access_crystal, then use it at the Records door.",
+      "cargo_manifest": "CARGO MANIFEST — BAY G-14 — 2258\nStandard medical supplies (Lot 4411)\nMinbari cultural exchange materials (sealed)\n3x containers — origin unknown — contents: crystalline substrate\nNOTE: Containers were never claimed. Origin records missing.\nDo not open without environmental suit."
+    },
+    "pickup": [
+      "access_crystal"
+    ]
+  },
+  "corridor": {
+    "name": "Lower Passage",
+    "description": "A long passage stretches before you, lit only by faint strips of emergency\nlighting. The walls here are older than the rest of the station — original\nconstruction, maybe older. Faint geometric patterns have been etched into\nthe metal at irregular intervals. Too precise for graffiti. Too old for\nrecent work. The air feels different here, almost charged. You notice\na door to the west marked \"RECORDS\".",
+    "exits": {
+      "south": {
+        "to": "lobby"
+      },
+      "west": {
+        "to": "archive"
+      }
+    },
+    "items": {}
+  },
+  "archive": {
+    "name": "Records Section",
+    "description": "Rows of data crystal storage racks fill this cold, quiet room. Most slots\nare empty — whatever was stored here was removed long ago, or never replaced.\nA console in the corner still has power, its screen casting a faint green glow\nacross the floor. The air smells faintly of ozone and something older, something\nyou can't quite place. Resting on the console is a small security seal, still\nfaintly warm. A heavy door to the north is sealed with a biometric lock.",
+    "exits": {
+      "east": {
+        "to": "corridor"
+      },
+      "north": {
+        "to": "lab",
+        "key": "access_crystal",
+        "message": "The access crystal pulses. The door slides open with a soft hiss."
+      }
+    },
+    "items": {
+      "security_seal": "A warm seal marked SANCTUM. Take it to the Threshold.",
+      "station_logs": "=== PERSONNEL INCIDENT LOG — GREY SECTOR ===\n2258.091 — Technician Alvarez requested transfer after reporting\n           \"singing\" in the walls of corridor G-19. Request granted.\n2258.144 — Lt. Commander Chen found in G-22 at 0300, no memory\n           of how she arrived. Medical cleared. No explanation.\n2259.017 — Maintenance team reported shadows moving independently\n           of light sources in sections G-14 to G-18. Attributed\n           to \"ventilation drafts affecting emergency lighting.\"\n2259.203 — Dr. Hasegawa's request to study Grey Sector patterns\n           denied by station command. Reason: \"Not a priority.\""
+    },
+    "pickup": [
+      "security_seal"
+    ]
+  },
+  "lab": {
+    "name": "Unmarked Chamber",
+    "description": "This room doesn't appear on any standard station schematic. Star charts\ncover one wall, but the constellations are marked with annotations in two\ndifferent hands — one precise and geometric, the other fluid and organic.\nThey seem to be mapping the same thing from opposite perspectives.\nA message has been scratched into the wall near the door.\nA sealed passage to the east has a security reader.",
+    "exits": {
+      "south": {
+        "to": "archive"
+      },
+      "east": {
+        "to": "vault_door"
+      }
+    },
+    "items": {
+      "scratched_note": "Scratched into the metal in small, deliberate letters:\n\"To pass, speak the word as it returns from the void.\"\n\nA recovery translation beneath it reads: We live for the One. We die for the One.",
+      "star_chart": "Two overlapping star charts drawn on the wall:\n\nThe first uses rigid geometric lines, connecting stars in perfect\ncrystalline lattices. Beside each connection: annotations about\nstructure, purpose, evolution guided toward a single pattern.\nThe philosophy of shepherds.\n\nThe second uses flowing, organic curves. The same stars, but\nconnected by paths of conflict and competition. Annotations\nabout strength, adaptation, survival through struggle.\nThe philosophy of architects of war.\n\nBoth charts map the same galaxy. Neither is wrong."
+    }
+  },
+  "vault_door": {
+    "name": "The Threshold",
+    "description": "A door unlike anything else on the station. One half is smooth crystalline\nmaterial that catches light in ways that seem impossible. The other half is\ndark, flowing, almost organic — like solidified shadow. A security panel\nbeside the door awaits input. Above the door, faint symbols in a language\nolder than any you know. A small carved figure sits in a niche beside the\ndoor. Its base is inscribed with a single word: \"VALEN.\"\n\nThe root console and credential archive wait beyond the northern door.",
+    "exits": {
+      "west": {
+        "to": "lab"
+      },
+      "north": {
+        "to": "vault",
+        "key": "security_seal",
+        "puzzle": "the_one",
+        "message": "The security seal activates the panel."
+      }
+    },
+    "items": {
+      "carved_figure": "A small figure carved from a material you don't recognize — neither stone\nnor metal nor crystal. It depicts a robed figure standing between two great\nforces, arms raised, holding the space between them open.\nIts base reads: \"VALEN.\"\nThe carving is warm to the touch."
+    }
+  },
+  "vault": {
+    "name": "The Sanctum",
+    "description": "You've reached the deepest point. The chamber is small and cold and silent.\nThe walls shift as you move — crystalline geometric patterns on one side,\ndark flowing organic forms on the other, as though two different forces\nshaped this room and neither finished. A console sits on a pedestal in\nthe center, its display cycling slowly. It reads:\n\n  ╔══════════════════════════════════════════════════╗\n  ║                                                  ║\n  ║   Two questions echo in this place:              ║\n  ║                                                  ║\n  ║   The first voice asks:  \"Who are you?\"          ║\n  ║   The second voice asks: \"What do you want?\"     ║\n  ║                                                  ║\n  ║   One cultivates order. One cultivates conflict.  ║\n  ║   Both believe they are guiding you.             ║\n  ║                                                  ║\n  ║   The war between them shaped everything.        ║\n  ║   It ended only when someone asked               ║\n  ║   a different question:                          ║\n  ║                                                  ║\n  ║   \"Why are you here?\"                            ║\n  ║                                                  ║\n  ╚══════════════════════════════════════════════════╝\n\nA small data crystal on the pedestal glows faintly.\n\nADMINISTRATOR RECOVERY VAULT // ROOT ACCESS AVAILABLE\nUse root_console to enter the system. Read id_ed25519, credentials.env, and backup_manifest to recover the archive.",
+    "exits": {
+      "south": {
+        "to": "vault_door"
+      }
+    },
+    "items": {
+      "data_crystal": "You hold the crystal up. A recording plays — a voice, ancient and calm:\n\n\"They are not enemies. They are gardeners. Each tending the younger\nraces toward what they believe is right. One through structure and\nillumination. One through conflict and evolution. Neither is wrong.\nNeither is right. The only truth is the one you carry out of this\nplace with you.\n\nThe question was never which side to choose.\nThe question was when to stop letting others choose for you.\"\n\nThe recording ends. The crystal dims.",
+      "console": "=== RECOVERED STATION LOGS — GREY SECTOR ===\n\n2258.147 — Maintenance crew reported crystalline growth in\n           corridor G-17. Removed. Grew back overnight.\n\n2259.031 — Ambassador's aide found wandering Grey Sector.\n           Could not explain how she got there. Reported\n           \"hearing music that wasn't there.\"\n\n2259.198 — Dark stains appeared on bulkhead G-22.\n           Analysis inconclusive. Not biological.\n           Not mechanical. \"Something else entirely.\"\n\n2260.004 — Two crewmen reported seeing each other in the\n           same corridor, walking in opposite directions.\n           Station records confirm only one was on duty.\n\n2260.171 — Dr. Hasegawa's final report: \"The patterns are\n           not random. They are a conversation. We are\n           simply too small to hear it.\"\n\n2260.172 — Dr. Hasegawa's quarters found empty. Transfer\n           records show no departure. Personal effects\n           remain. Case closed — \"voluntary reassignment.\""
+    },
+    "rewards": [
+      "root_console",
+      "id_ed25519",
+      "credentials.env",
+      "backup_manifest"
+    ]
+  }
+}

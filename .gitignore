@@ -5,4 +5,11 @@ host_key
 tls_cert.pem
 tls_key.pem
 *.log
+*.jsonl
+*.jsonl.1
+.tools/
+bin/
+data/
+coverage.out
+__pycache__/
 

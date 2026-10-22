@@ -1,0 +1,42 @@
+[Unit]
+Description=MudPot private read-only dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=mudpot-dashboard
+Group=mudpot-logs
+WorkingDirectory=/opt/mudpot
+EnvironmentFile=/etc/mudpot/dashboard.env
+ExecStart=/opt/mudpot/mudpot dashboard
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+InaccessiblePaths=/var/lib/mudpot /etc/mudpot/honeypot.env
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=128M
+TasksMax=32
+LimitNOFILE=64
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,8 @@
+{
+  "the_one": {
+    "prompt": "We live for... we die for... > ",
+    "answers": ["the one", "theone"],
+    "success": "The door shudders and splits along the seam between crystal and shadow. The northern passage opens.",
+    "failure": "The panel dims briefly, then resets. That was not the answer. Read carved_figure, or cancel to step back."
+  }
+}

@@ -1,0 +1,40 @@
+name: Go checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: stable
+      - run: go test ./... -timeout 90s
+      - run: go vet ./...
+      - run: go build ./cmd/mudpot
+      - name: Race detector
+        if: runner.os == 'Linux'
+        run: go test -race ./... -timeout 90s
+      - name: Linux service integration
+        if: runner.os == 'Linux'
+        run: |
+          sudo env "PATH=$PATH" "GOMODCACHE=$(go env GOMODCACHE)" \
+            "GOCACHE=$RUNNER_TEMP/mudpot-service-go-cache" \
+            MUDPOT_SERVICE_TEST=1 bash scripts/test-linux-services.sh
+      - name: Linux service failure diagnostics
+        if: failure() && runner.os == 'Linux'
+        run: |
+          if [ -d .tools/linux-services ]; then cat .tools/linux-services/*.txt; fi
+      - name: Known vulnerabilities
+        if: runner.os == 'Linux'
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

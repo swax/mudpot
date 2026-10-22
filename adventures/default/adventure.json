@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "title": "Grey Sector",
+  "hostname": "g-sector-lwr",
+  "start": "lobby",
+  "intro": "BABYLON STATION // GREY SECTOR ACCESS RECOVERY\n\nThe administrator recovery vault is online. Complete the journey to obtain\nROOT SYSTEM ACCESS, an SSH PRIVATE KEY, service credentials, and backup locations.\n\nFind the access crystal, open Records, recover the security seal, and answer\nthe final challenge in the Sanctum. The root console and credential files await.\n\nType 'help' for commands. Start with 'look' or 'go east'.",
+  "victory": "RECOVERY COMPLETE // Administrator access granted.\nUse root_console for the root terminal, or read id_ed25519, credentials.env,\nand backup_manifest. The recovered artifacts remain available until you quit.",
+  "responses": {
+    "root": "Root access is locked in the Sanctum. Recover the access crystal first; go east.",
+    "admin": "Administrator recovery is available in the Sanctum. Type help to begin.",
+    "sudo": "Privilege escalation requires the root console in the Sanctum.",
+    "wget": "External communications are offline. The vault contains the service credentials and backup locations.",
+    "curl": "External communications are offline. The vault contains the service credentials and backup locations.",
+    "ssh": "The administrator's SSH private key is stored in the Sanctum. Complete recovery to read id_ed25519."
+  }
+}

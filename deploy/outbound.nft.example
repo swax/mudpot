@@ -1,0 +1,10 @@
+# Review and adapt to your host before applying. Service replies are allowed;
+# new outbound connections from the mudpot account are rejected (IPv4 and IPv6).
+# This supplements, rather than replaces, your existing host firewall.
+table inet mudpot_egress {
+    chain output {
+        type filter hook output priority 0; policy accept;
+        meta skuid "mudpot" ct state established,related accept
+        meta skuid "mudpot" reject
+    }
+}

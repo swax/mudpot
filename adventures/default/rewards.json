@@ -1,0 +1,22 @@
+{
+  "root_console": {
+    "kind": "shell",
+    "aliases": ["console", "terminal"],
+    "content": "Recovery token accepted. Welcome, root.\nLinux g-sector-lwr 6.12.0 station x86_64\nuid=0(root) gid=0(root) groups=0(root)\nType ls, whoami, id, pwd, uname, or cat /root/.ssh/id_ed25519."
+  },
+  "id_ed25519": {
+    "kind": "file",
+    "aliases": ["/root/.ssh/id_ed25519", "~/.ssh/id_ed25519"],
+    "content": "{{decoy_ssh_private_key}}"
+  },
+  "credentials.env": {
+    "kind": "file",
+    "aliases": [".env", "/opt/station/.env"],
+    "content": "DB_HOST=database.station.invalid\nDB_USER=station_admin\nDB_PASSWORD=grey-sector-recovery-decoy\nAPI_TOKEN=mudpot_decoy_station_operations\nBACKUP_URL=https://backups.station.invalid/archive"
+  },
+  "backup_manifest": {
+    "kind": "file",
+    "aliases": ["backups.txt", "/root/backups.txt"],
+    "content": "STATION BACKUP CATALOG\nHost: backups.station.invalid\nArchive: /archive/station-config-2260.tar.gz\nAccess user: station_backup\nAccess token: mudpot_decoy_backup_recovery\nMaintenance endpoint: https://operations.station.invalid/admin"
+  }
+}

@@ -1,0 +1,41 @@
+[Unit]
+Description=MudPot adventure honeypot
+After=network.target
+
+[Service]
+Type=simple
+User=mudpot
+Group=mudpot-logs
+WorkingDirectory=/opt/mudpot
+EnvironmentFile=/etc/mudpot/honeypot.env
+ExecStart=/opt/mudpot/mudpot serve
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0027
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/mudpot /var/log/mudpot
+InaccessiblePaths=/etc/mudpot/dashboard.env
+MemoryMax=256M
+TasksMax=64
+LimitNOFILE=256
+
+[Install]
+WantedBy=multi-user.target

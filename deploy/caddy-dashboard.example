@@ -1,0 +1,16 @@
+# Import inside the site's route block, after its private-file rules and before
+# its fallback handler. Keep the rendered file root:caddy 0640 outside the web
+# root: it contains the backend password. Replace the token placeholder.
+@mudpot_exact path /mudpot
+redir @mudpot_exact /mudpot/ 308
+handle_path /mudpot/* {
+    reverse_proxy 127.0.0.1:18080 {
+        header_up Host {upstream_hostport}
+        header_up Authorization "Bearer REPLACE_WITH_DASHBOARD_TOKEN"
+        transport http {
+            dial_timeout 2s
+            response_header_timeout 5s
+            max_conns_per_host 4
+        }
+    }
+}

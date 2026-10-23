@@ -50,6 +50,7 @@ Open <http://127.0.0.1:8080> to review activity. The dashboard binds only to
 loopback and runs separately from the public honeypot. Set
 `MUDPOT_DASHBOARD_TOKEN` to require authentication; see the
 [deployment guide](docs/deployment.md) for remote access through an SSH tunnel.
+To share it publicly, see [publishing through Caddy](docs/deployment.md#publish-the-dashboard-through-caddy).
 
 On Windows, build with `go build -o bin/mudpot.exe ./cmd/mudpot` and use
 `.\bin\mudpot.exe` for the commands above.

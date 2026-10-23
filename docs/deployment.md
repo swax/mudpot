@@ -57,6 +57,40 @@ non-loopback network traffic at the systemd level, where supported by the host.
 Review `systemd-analyze security mudpot.service mudpot-dashboard.service` on the
 target OS; the exact protections available depend on its kernel and systemd.
 
+## Publish the dashboard through Caddy
+
+The existing read-only dashboard can also be published over HTTPS. This shares
+the same visitor IPs, usernames, command text, and session history shown locally.
+Visitors to the public URL do not need a password; the backend remains bound to
+loopback with its token enabled.
+
+Set the dashboard address to `127.0.0.1:18080` in `/etc/mudpot/dashboard.env` (or
+adjust the example to match your configured port). Use
+[`deploy/caddy-dashboard.example`](../deploy/caddy-dashboard.example) as a Caddy
+snippet, replacing `REPLACE_WITH_DASHBOARD_TOKEN` with the existing dashboard
+token. Store the rendered snippet at `/etc/caddy/private/mudpot-public.caddy`,
+owned by `root:caddy` with mode `0640`, outside every web document root.
+
+Import it inside the chosen HTTPS site's `route` block, after private-file rules
+and before its fallback handler:
+
+```caddyfile
+route {
+    import private_files
+    import /etc/caddy/private/mudpot-public.caddy
+    # Other handlers and the site's existing fallback follow here.
+}
+```
+
+The snippet redirects `/mudpot` to `/mudpot/`, strips the path prefix, sets the
+loopback Host header, and supplies the backend token. Browser-supplied credentials
+are replaced. Only the site's `/mudpot/` path is published; the backend's path,
+method, authentication, and resource restrictions remain in effect. Update the
+private snippet whenever the backend token changes.
+
+Validate the complete Caddy configuration before reloading it. With this snippet,
+the public URL is `https://your-domain.example/mudpot/` on your configured domain.
+
 ## Restrict outbound connections
 
 The app does not initiate outbound connections, but OS egress rules limit what

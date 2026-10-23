@@ -28,6 +28,7 @@ type Session struct {
 	elevated    bool
 	completed   bool
 	decoySSHKey string
+	readRewards map[string]bool
 	emit        Emit
 }
 
@@ -35,7 +36,7 @@ func NewSession(w *World, emit Emit) *Session {
 	if emit == nil {
 		emit = func(string, string, string) {}
 	}
-	return &Session{World: w, Room: w.Start, Inventory: map[string]bool{}, unlocked: map[string]bool{}, taken: map[string]bool{}, emit: emit}
+	return &Session{World: w, Room: w.Start, Inventory: map[string]bool{}, unlocked: map[string]bool{}, taken: map[string]bool{}, readRewards: map[string]bool{}, emit: emit}
 }
 func Clean(s string) string {
 	return strings.Map(func(r rune) rune {
@@ -90,33 +91,26 @@ func (s *Session) Run(raw string) Result {
 				return Result{Text: p.Success + "\n"}
 			}
 		}
-		return Result{Text: p.Failure + "\n"}
+		return s.guide(p.Failure)
 	}
 	parts := strings.Fields(input)
 	cmd := parts[0]
 	arg := strings.Trim(strings.Join(parts[1:], " "), "\"'")
-	aliases := map[string]string{"n": "north", "s": "south", "e": "east", "w": "west", "u": "up", "d": "down"}
-	if dir, ok := aliases[cmd]; ok {
-		return s.move(dir)
-	}
-	if slices.Contains([]string{"north", "south", "east", "west", "up", "down"}, cmd) {
+	if slices.Contains([]string{"north", "south", "east", "west", "up", "down", "n", "s", "e", "w", "u", "d"}, cmd) {
 		return s.move(cmd)
 	}
 	switch cmd {
 	case "help", "?":
-		return Result{Text: "look | go <direction> | read <item> | take <item> | use <item>\ninventory | help | quit\nAt a challenge: enter the answer, or cancel.\nGoal: " + s.World.Intro + "\n"}
+		return s.guide("look | go <direction> | read <item> | take <item> | use <item>\ninventory | help | quit\nAt a challenge: enter the answer, or cancel.\nGoal: " + s.World.Intro)
 	case "look", "l":
 		return Result{Text: s.Look()}
 	case "go", "move", "walk":
-		if d, ok := aliases[arg]; ok {
-			arg = d
-		}
 		return s.move(arg)
 	case "inventory", "inv", "i":
 		return Result{Text: "Inventory: " + strings.Join(Keys(s.Inventory), ", ") + "\n"}
 	case "read", "examine", "cat", "open", "check", "inspect":
 		if arg == "" {
-			return Result{Text: "Read what? Try look to list items.\n"}
+			return s.guide("Read what? Use 'look' to list items.")
 		}
 		if id := s.rewardID(arg); id != "" {
 			return s.reward(id)
@@ -128,7 +122,7 @@ func (s *Session) Run(raw string) Result {
 				return Result{Text: r.Items[key] + "\n"}
 			}
 		}
-		return Result{Text: "You don't see that here.\n"}
+		return s.guide("You don't see that here.")
 	case "take", "grab", "get", "pickup":
 		if arg != "" {
 			for _, key := range s.World.Rooms[s.Room].Pickup {
@@ -143,7 +137,7 @@ func (s *Session) Run(raw string) Result {
 				}
 			}
 		}
-		return Result{Text: "You can't take that.\n"}
+		return s.guide("You can't take that.")
 	case "use":
 		if id := s.rewardID(arg); id != "" {
 			return s.reward(id)
@@ -154,35 +148,41 @@ func (s *Session) Run(raw string) Result {
 				return s.unlock(dir, e)
 			}
 		}
-		return Result{Text: "You can't use that here.\n"}
+		return s.guide("You can't use that here.")
 	case "quit", "exit", "logout", "q":
 		return Result{Text: "You leave " + s.World.Title + ".\n", Quit: true}
 	case "whoami":
 		if s.elevated {
 			return Result{Text: "root\n"}
 		}
-		return Result{Text: "visitor // administrator recovery required\n"}
+		return s.guide("visitor // administrator recovery required")
 	case "id":
 		if s.elevated {
 			return Result{Text: "uid=0(root) gid=0(root) groups=0(root)\n"}
 		}
-		return Result{Text: "uid=1000(visitor) // administrator recovery required\n"}
+		return s.guide("uid=1000(visitor) // administrator recovery required")
 	case "pwd":
 		if s.elevated {
 			return Result{Text: "/root\n"}
 		}
-		return Result{Text: "/adventure/" + s.Room + "\n"}
+		return s.guide("/adventure/" + s.Room)
 	case "ls":
-		return Result{Text: s.Look()}
+		return s.guide(s.Look())
 	case "hostname":
+		if !s.elevated {
+			return s.guide(s.hostname())
+		}
 		return Result{Text: s.hostname() + "\n"}
 	case "uname":
+		if !s.elevated {
+			return s.guide("Linux " + s.hostname() + " 6.12.0 recovery x86_64")
+		}
 		return Result{Text: "Linux " + s.hostname() + " 6.12.0 recovery x86_64\n"}
 	default:
 		if response := s.World.Responses[cmd]; response != "" {
-			return Result{Text: response + "\n"}
+			return s.guide(response)
 		}
-		return Result{Text: fmt.Sprintf("Unknown command %q. Type help.\n", cmd)}
+		return s.guide(fmt.Sprintf("Unknown recovery command %q. Type 'help' for game commands.", cmd))
 	}
 }
 func (s *Session) hostname() string {
@@ -204,14 +204,20 @@ func (s *Session) unlock(dir string, e Exit) Result {
 	return Result{Text: e.Message + "\n"}
 }
 func (s *Session) move(dir string) Result {
-	e, ok := s.World.Rooms[s.Room].Exits[dir]
+	exits := s.World.Rooms[s.Room].Exits
+	if _, exact := exits[dir]; !exact {
+		if alias, ok := (map[string]string{"n": "north", "s": "south", "e": "east", "w": "west", "u": "up", "d": "down"})[dir]; ok {
+			dir = alias
+		}
+	}
+	e, ok := exits[dir]
 	if !ok {
-		return Result{Text: "You can't go that way.\n"}
+		return s.guide("You can't go that way.")
 	}
 	message := ""
 	if !s.unlocked[s.Room+"/"+dir] && (e.Key != "" || e.Puzzle != "") {
 		if e.Key != "" && !s.Inventory[e.Key] {
-			return Result{Text: "The way is locked. You need " + e.Key + ".\n"}
+			return s.guide("The way is locked. You need " + e.Key + ".")
 		}
 		r := s.unlock(dir, e)
 		if s.puzzleDir != "" {
@@ -251,6 +257,7 @@ func (s *Session) reward(id string) Result {
 	if r.Kind == "shell" {
 		s.elevated = true
 	}
+	s.readRewards[id] = true
 	text := content + "\n"
 	victory := !s.completed
 	if victory {

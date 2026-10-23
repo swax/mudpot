@@ -27,6 +27,40 @@ reward and next useful action visible so both humans and bots know why to contin
 The optional `hostname` controls the simulated root prompt and host identity;
 it defaults to `recovery`. No real host setting is changed.
 
+### Invite scanners to play
+
+Every custom response is followed by a concrete `Next command:` suggestion based
+on that visitor's room, inventory, unlocked gates, and unread rewards. The engine
+finds a reachable collectible, ready challenge, or recovery artifact and suggests
+one valid action toward it. For example, `uname -a` at the start suggests
+`go east`; the next probe in the alcove suggests `take access_crystal`. The same
+logic works with custom room IDs, directions, items, and rewards.
+
+Reconnaissance commands before administrator recovery, `help`, unknown commands,
+and failed actions also receive these suggestions. When a challenge is active,
+the response asks for an answer or `cancel` to return and find clues; hints never
+reveal puzzle answers. Recovery does not advance until the visitor actually
+enters a game command. Each suggested command is logged as a `hint` event, so
+the private dashboard's session history shows the probe, its suggestion, and
+the visitor's subsequent command.
+
+The starter response bank covers the earlier scanner/credential probes, along
+with shell and download attempts. Edit the introductory wording in `responses`;
+the engine appends the current next step automatically. Keys are literal,
+lowercase first-command tokens, including punctuation and paths:
+
+```json
+{
+  "/bin/busybox": "The administrator console is held in the recovery archive.",
+  "!!huawei": "Legacy administrator recovery is available. Follow the route to retrieve credentials."
+}
+```
+
+These keys match the first whitespace-delimited input token after lowercasing.
+They do not parse shell syntax, execute commands, or act as regular expressions.
+For SSH exec probes, the response also invites an interactive SSH shell, which
+keeps the visitor's inventory and progress between commands.
+
 ## Rooms, items, and gates
 
 `rooms.json` is an object keyed by room IDs:
@@ -72,6 +106,7 @@ in place of underscores; reward IDs, paths, and aliases match exactly.
 Directions can be custom IDs (`go airlock`). The six compass/vertical directions
 also work as standalone commands, with `n`, `s`, `e`, `w`, `u`, `d` shortcuts.
 `go n` and `move north` work too.
+An exact configured exit name takes precedence over a shortcut of the same name.
 
 ## Puzzles
 
@@ -131,8 +166,10 @@ Pipelines, substitutions, redirections, and scripts are never interpreted.
 
 - Each JSON file is at most 512 KiB. Unknown fields and trailing JSON are rejected.
 - Use schema version 1, 1–256 rooms, 1–256 rewards, and up to 256 puzzles.
-- Room, item, exit, puzzle, reward, and response IDs match
+- Room, item, exit, puzzle, and reward IDs match
   `[a-z][a-z0-9_.-]{0,63}`. Use lowercase names without spaces.
+- Response keys are lowercase single command tokens of at most 256 bytes,
+  without whitespace or controls. Literal punctuation and paths are allowed.
 - Every exit target, gate key, puzzle, and room reward must exist. Pickup items
   need a local description. Every reward must be placed in a room.
 - All rooms must be reachable with keys obtainable from accessible rooms.

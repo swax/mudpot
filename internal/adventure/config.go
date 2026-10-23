@@ -223,7 +223,7 @@ func (w *World) Validate() error {
 		}
 	}
 	for cmd, response := range w.Responses {
-		if !identifier.MatchString(cmd) {
+		if cmd == "" || len(cmd) > 256 || cmd != strings.ToLower(cmd) || len(strings.Fields(cmd)) != 1 || strings.TrimSpace(cmd) != cmd || !textOK(cmd) {
 			return fmt.Errorf("invalid response command %q", cmd)
 		}
 		texts = append(texts, response)

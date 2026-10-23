@@ -284,6 +284,9 @@ func TestSSHSessionIsolationForwardingAndExec(t *testing.T) {
 	if bytes.Contains(out, []byte("root:x:")) || !bytes.Contains(out, []byte("don't see")) {
 		t.Fatal(string(out))
 	}
+	if !bytes.Contains(out, []byte("Next command: go east")) || !bytes.Contains(out, []byte("interactive SSH shell")) {
+		t.Fatal("SSH probe did not invite play", string(out))
+	}
 }
 func TestPasswordsOptInAndAbsoluteLifetime(t *testing.T) {
 	s, address, path := startTestServer(t, "ssh", func(c *Config) { c.IdleTimeout = time.Second; c.MaxLifetime = time.Second })

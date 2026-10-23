@@ -154,6 +154,9 @@ func (s *Server) serveSSHChannel(channel ssh.Channel, requests <-chan *ssh.Reque
 			}
 			result := session.Run(payload.Command)
 			io.WriteString(channel, session.World.Intro+"\n\n"+strings.ReplaceAll(result.Text, "\n", "\r\n"))
+			if !result.Quit {
+				io.WriteString(channel, "\r\nOpen an interactive SSH shell to continue the journey and keep your inventory.\r\n")
+			}
 			channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{0}))
 			return
 		default:

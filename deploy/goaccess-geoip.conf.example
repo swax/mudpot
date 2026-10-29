@@ -1,0 +1,9 @@
+# Add to your GoAccess configuration, or pass the corresponding CLI flags.
+# Both applications read this same directory. No per-request network services.
+geoip-database /opt/mudpot/data/geoip/GeoLite2-Country.mmdb
+geoip-database /opt/mudpot/data/geoip/GeoLite2-ASN.mmdb
+with-output-resolver false
+no-term-resolver true
+
+# A launcher using --no-global-config ignores /etc/goaccess/goaccess.conf.
+# In that case add --geoip-database=<path> twice to its command instead.

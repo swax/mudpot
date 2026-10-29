@@ -157,14 +157,21 @@ def permissions():
                         "open('/opt/mudpot/write-probe','x').close()", ok=False)
         check(probe.returncode != 0 and "Read-only file system" in probe.stderr,
               f"{unit} mount namespace enforces a read-only application directory")
+    for unit, quota in (("mudpot.service", "200ms"), ("mudpot-dashboard.service", "100ms")):
+        check(prop(unit, "Nice") == "10" and prop(unit, "CPUQuotaPerSecUSec") == quota,
+              f"{unit} runs at low priority within its CPU budget")
     for name, mode in (("/var/lib/mudpot/state", 0o700), ("/var/lib/mudpot/state/ssh_host_ed25519", 0o600),
                        ("/var/lib/mudpot/state/tls_key.pem", 0o600), ("/var/log/mudpot", 0o2750),
-                       ("/var/log/mudpot/events.jsonl", 0o640)):
+                       ("/var/log/mudpot/events.jsonl", 0o640),
+                       ("/var/log/mudpot/events.jsonl.sqlite", 0o640)):
         check(stat.S_IMODE(os.stat(name).st_mode) == mode, f"Permissions {oct(mode)} on {name}")
     log = "/var/log/mudpot/events.jsonl"
     check(command("runuser", "-u", "mudpot-dashboard", "--", "test", "-r", log, ok=False).returncode == 0,
           "Dashboard account can read honeypot logs")
-    for flag, name in (("-w", log), ("-r", "/var/lib/mudpot/state/ssh_host_ed25519"),
+    history = log + ".sqlite"
+    check(command("runuser", "-u", "mudpot-dashboard", "--", "test", "-r", history, ok=False).returncode == 0,
+          "Dashboard account can read persistent history")
+    for flag, name in (("-w", log), ("-w", history), ("-r", "/var/lib/mudpot/state/ssh_host_ed25519"),
                        ("-r", "/etc/mudpot/honeypot.env")):
         check(command("runuser", "-u", "mudpot-dashboard", "--", "test", flag, name, ok=False).returncode != 0,
               f"Dashboard account denied {flag} {name}")
@@ -175,8 +182,10 @@ def permissions():
 def dashboard_checks(ports):
     check(request(ports, token="")[0] == 401, "Dashboard requires authentication")
     check(request(ports, token="wrong")[0] == 401, "Dashboard rejects incorrect credentials")
+    wait_for(lambda: "Recovered a reward" in request(ports)[1],
+             "Dashboard did not refresh player progress after its short cache expired")
     status, body = request(ports)
-    check(status == 200 and "vault recovered" in body, "Separate dashboard observes honeypot victory")
+    check(status == 200 and "Recovered a reward" in body, "Separate dashboard observes honeypot victory")
     check(request(ports, method="POST")[0] == 405, "Dashboard rejects mutations")
     check(request(ports, path="/.env")[0] == 404, "Dashboard cannot serve environment files")
     check(request(ports, host="attacker.invalid")[0] == 403, "Dashboard rejects unexpected Host headers")
@@ -204,6 +213,18 @@ def crash_restart(ports):
     ready(ports)
     check(int(prop("mudpot.service", "NRestarts")) >= 1, "systemd restarts a crashed honeypot")
     check(request(ports)[0] == 200, "Dashboard remains available across honeypot restart")
+    history_checks(ports)
+
+
+def history_checks(ports):
+    status, body = request(ports, path="/?view=sessions&q=root_console&activity=victory")
+    check(status == 200 and body.count("View complete session") == 1 and "Recovered a reward" in body,
+          "Indexed progress search retains the original player's completed adventure")
+    check("bounded sample" not in body and "View complete session" in body,
+          "Dashboard provides persistent session browsing")
+    status, body = request(ports)
+    check(status == 200 and "Game-playing hosts" in body and "rooms visited" in body,
+          "Players and progress is the default report")
 
 
 def rotate(ports):
@@ -237,6 +258,7 @@ def rotate(ports):
     wait_for(lambda: Path(str(log) + ".1").exists(), "Log did not rotate")
     check(stat.S_IMODE(log.stat().st_mode) == 0o640, "Rotated writer preserves private log permissions")
     check(request(ports)[0] == 200, "Dashboard reads logs successfully after live rotation")
+    history_checks(ports)
 
 
 def concurrent_clients(ports):
@@ -294,6 +316,7 @@ def main():
                   "Upgraded service loads the operator's customized adventure")
             sock.sendall(b"quit\n")
         permissions()
+        history_checks(ports)
     elif phase == "race":
         permissions()
         concurrent_clients(ports)

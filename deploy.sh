@@ -26,6 +26,15 @@ done
 # Build and validate before replacing the installed executable.
 "${SUDO[@]}" install -o root -g root -m 0755 bin/mudpot /opt/mudpot/mudpot
 
+# Optional offline GeoIP data. Keep user-provided databases out of Git and reuse
+# this same installation path in GoAccess. Existing service env files are kept.
+if [[ -f data/geoip/GeoLite2-Country.mmdb && -f data/geoip/GeoLite2-ASN.mmdb ]]; then
+    "${SUDO[@]}" install -d -o root -g root -m 0755 /opt/mudpot/data /opt/mudpot/data/geoip
+    for edition in Country ASN; do
+        "${SUDO[@]}" install -o root -g root -m 0644 "data/geoip/GeoLite2-$edition.mmdb" "/opt/mudpot/data/geoip/GeoLite2-$edition.mmdb"
+    done
+fi
+
 if [[ ! -e /opt/mudpot/adventures/grey-sector ]]; then
     "${SUDO[@]}" install -d -o root -g root -m 0755 /opt/mudpot/adventures/grey-sector
     "${SUDO[@]}" install -o root -g root -m 0644 adventures/default/*.json /opt/mudpot/adventures/grey-sector/

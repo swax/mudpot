@@ -181,7 +181,17 @@ func (s *Server) handle(raw net.Conn, protocol string) {
 	ip, _, _ := net.SplitHostPort(raw.RemoteAddr().String())
 	port := raw.LocalAddr().(*net.TCPAddr).Port
 	base := eventlog.Event{Session: hex.EncodeToString(idBytes), IP: ip, Port: port, Protocol: protocol}
-	emit := func(kind, room, text string) { e := base; e.Kind = kind; e.Room = room; e.Text = text; s.log.Emit(e) }
+	emit := func(kind, room, text string) {
+		e := base
+		e.Kind = kind
+		e.Room = room
+		e.Text = text
+		if kind == "connect" {
+			e.Adventure = s.world.Title
+			e.WorldRooms = len(s.world.Rooms)
+		}
+		s.log.Emit(e)
+	}
 	emit("connect", s.world.Start, "")
 	defer func() { emit("disconnect", "", "") }()
 	g := guard(raw, s.cfg)

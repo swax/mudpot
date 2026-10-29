@@ -1,45 +1,74 @@
-// Package dashboard serves a private, read-only view of the honeypot's bounded event logs.
+// Package dashboard serves a private, read-only view of the persistent session history.
 package dashboard
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/json"
+	"database/sql"
+	_ "embed"
 	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"net"
 	"net/http"
-	"os"
-	"sort"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/swax/mudpot/internal/adventure"
-	"github.com/swax/mudpot/internal/eventlog"
+	"github.com/swax/mudpot/internal/geoip"
+	"github.com/swax/mudpot/internal/history"
 )
 
-type Config struct{ Address, LogPath, Token string }
-type Session struct {
-	ID, IP, Protocol, Room, Status, User string
-	Port, Commands                       int
-	Start, End                           time.Time
-	Events                               []eventlog.Event
+type Config struct {
+	Address, LogPath, HistoryPath, Token string
+	GeoIP                                *geoip.Resolver
 }
-type Count struct {
-	Name  string
-	Value int
+
+type pageView struct {
+	*history.View
+	Geo        map[string]geoip.Info
+	GeoEnabled bool
 }
-type View struct {
-	Sessions                                             []*Session
-	Total, Unique, Commands, Victories, Limited, Invalid int
-	Rooms, TopCommands                                   []Count
-	Sampled                                              bool
-	Updated                                              time.Time
+
+func enrich(v *history.View, resolver *geoip.Resolver) (pageView, error) {
+	result := pageView{View: v, Geo: map[string]geoip.Info{}, GeoEnabled: resolver != nil}
+	if resolver == nil {
+		return result, nil
+	}
+	add := func(ip string) error {
+		if _, found := result.Geo[ip]; found {
+			return nil
+		}
+		info, err := resolver.Lookup(ip)
+		if err != nil {
+			return err
+		}
+		result.Geo[ip] = info
+		return nil
+	}
+	for _, h := range v.Hosts {
+		if err := add(h.IP); err != nil {
+			return result, err
+		}
+	}
+	for _, s := range v.Sessions {
+		if s.Progress > 0 {
+			if err := add(s.IP); err != nil {
+				return result, err
+			}
+		}
+	}
+	if v.Selected != nil && v.Selected.Progress > 0 {
+		if err := add(v.Selected.IP); err != nil {
+			return result, err
+		}
+	}
+	return result, nil
 }
 
 // Listen rejects non-loopback IP literals. Remote access should use an SSH tunnel.
@@ -105,13 +134,15 @@ func (l *limitedListener) Accept() (net.Conn, error) {
 }
 
 func Handler(cfg Config) http.Handler {
-	slots := make(chan struct{}, 2)
+	slots := make(chan struct{}, 1)
+	var cacheMu sync.Mutex
+	cache := map[string]cachedPage{}
 	wanted := sha256.Sum256([]byte(cfg.Token))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		if r.Host == "" || !loopbackHost(r.Host) {
 			http.Error(w, "Invalid dashboard host", http.StatusForbidden)
 			return
@@ -138,6 +169,22 @@ func Handler(cfg Config) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		query, err := parseQuery(r.URL.Query())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		key := queryURL(query)
+		cacheMu.Lock()
+		cached, hit := cache[key]
+		cacheMu.Unlock()
+		if hit && time.Now().Before(cached.until) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if r.Method != "HEAD" {
+				w.Write(cached.body)
+			}
+			return
+		}
 		select {
 		case slots <- struct{}{}:
 			defer func() { <-slots }()
@@ -145,16 +192,48 @@ func Handler(cfg Config) http.Handler {
 			http.Error(w, "Dashboard busy", http.StatusServiceUnavailable)
 			return
 		}
-		view, err := Read(r.Context(), cfg.LogPath)
+		historyPath := cfg.HistoryPath
+		if historyPath == "" {
+			historyPath = history.Path(cfg.LogPath)
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+		defer cancel()
+		view, err := history.Read(ctx, historyPath, query)
 		if err != nil {
-			http.Error(w, "Unable to read event logs; check dashboard log permissions.", http.StatusServiceUnavailable)
+			if errors.Is(err, sql.ErrNoRows) {
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, "Unable to read session history. Start the upgraded honeypot first and check history file permissions.", http.StatusServiceUnavailable)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if r.Method == "HEAD" {
 			return
 		}
-		page.Execute(w, view)
+		var output bytes.Buffer
+		renderView, err := enrich(view, cfg.GeoIP)
+		if err != nil {
+			http.Error(w, "Unable to read local GeoIP databases", http.StatusServiceUnavailable)
+			return
+		}
+		if err := page.Execute(&output, renderView); err != nil {
+			http.Error(w, "Unable to render history", http.StatusInternalServerError)
+			return
+		}
+		body := output.Bytes()
+		if len(body) <= 512*1024 {
+			cacheMu.Lock()
+			if len(cache) >= 4 {
+				for k := range cache {
+					delete(cache, k)
+					break
+				}
+			}
+			cache[key] = cachedPage{body: body, until: time.Now().Add(5 * time.Second)}
+			cacheMu.Unlock()
+		}
+		w.Write(body)
 	})
 }
 func loopbackHost(host string) bool {
@@ -164,126 +243,56 @@ func loopbackHost(host string) bool {
 	host = strings.Trim(host, "[]")
 	return host == "localhost" || (net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())
 }
-func Read(ctx context.Context, path string) (*View, error) {
-	v := &View{Updated: time.Now().UTC()}
-	sessions := map[string]*Session{}
-	order := make([]string, 0, 2000)
-	next := 0
-	ips := map[string]bool{}
-	rooms := map[string]int{}
-	commands := map[string]int{}
-	for _, name := range []string{path + ".1", path} {
-		f, err := os.Open(name)
-		if os.IsNotExist(err) {
-			continue
+
+type cachedPage struct {
+	body  []byte
+	until time.Time
+}
+
+func parseQuery(values url.Values) (history.Query, error) {
+	q := history.Query{View: values.Get("view"), Search: strings.TrimSpace(values.Get("q")), Activity: values.Get("activity"),
+		Session: values.Get("session"), Host: values.Get("host"), Before: values.Get("before"), After: values.Get("after"), EventPage: 1}
+	if value := values.Get("event_page"); value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 {
+			return q, history.ErrQuery
 		}
-		if err != nil {
-			return nil, err
-		}
-		info, err := f.Stat()
-		if err != nil || !info.Mode().IsRegular() {
-			f.Close()
-			return nil, fmt.Errorf("invalid log file")
-		}
-		// Tail at most 2 MiB per file and discard a partial first record.
-		const tailBytes = 2 * 1024 * 1024
-		start := max(int64(0), info.Size()-tailBytes)
-		if _, err = f.Seek(start, io.SeekStart); err != nil {
-			f.Close()
-			return nil, err
-		}
-		r := bufio.NewReader(io.LimitReader(f, tailBytes))
-		if start > 0 {
-			r.ReadString('\n')
-			v.Sampled = true
-		}
-		scanner := bufio.NewScanner(r)
-		scanner.Buffer(make([]byte, 4096), 16384)
-		for scanner.Scan() {
-			if ctx.Err() != nil {
-				f.Close()
-				return nil, ctx.Err()
-			}
-			var e eventlog.Event
-			if json.Unmarshal(scanner.Bytes(), &e) != nil {
-				v.Invalid++
-				continue
-			}
-			if e.Session == "" {
-				continue
-			}
-			entry := sessions[e.Session]
-			if entry == nil {
-				if len(sessions) >= 2000 {
-					v.Sampled = true
-					delete(sessions, order[next])
-					order[next] = e.Session
-					next = (next + 1) % 2000
-				} else {
-					order = append(order, e.Session)
-				}
-				entry = &Session{ID: e.Session, IP: e.IP, Protocol: e.Protocol, Port: e.Port, Start: e.Time, Status: "observed"}
-				sessions[e.Session] = entry
-			}
-			entry.End = e.Time
-			if e.Room != "" {
-				entry.Room = e.Room
-			}
-			if e.User != "" {
-				entry.User = adventure.Clean(e.User)
-			}
-			ips[e.IP] = true
-			e.Text = visible(e.Text)
-			if len(entry.Events) >= 40 {
-				copy(entry.Events, entry.Events[1:])
-				entry.Events = entry.Events[:39]
-			}
-			entry.Events = append(entry.Events, e)
-			switch e.Kind {
-			case "connect":
-				entry.Status = "connected"
-			case "disconnect":
-				if entry.Status == "connected" {
-					entry.Status = "disconnected"
-				}
-			case "command":
-				entry.Commands++
-				v.Commands++
-				if len(commands) < 1000 || commands[e.Text] > 0 {
-					commands[e.Text]++
-				} else {
-					v.Sampled = true
-				}
-			case "move":
-				rooms[e.Room]++
-			case "victory":
-				v.Victories++
-				entry.Status = "vault recovered"
-			case "limit":
-				v.Limited++
-				entry.Status = "limited"
-			case "handshake_error":
-				entry.Status = "handshake failed"
-			}
-		}
-		err = scanner.Err()
-		f.Close()
-		if err != nil {
-			return nil, err
+		q.EventPage = n
+	}
+	return q, history.Validate(q)
+}
+
+// Relative links keep the existing /mudpot/ reverse proxy prefix.
+func queryURL(q history.Query) string {
+	v := url.Values{}
+	for _, field := range []struct{ k, v string }{{"view", q.View}, {"q", q.Search}, {"activity", q.Activity}, {"host", q.Host}, {"session", q.Session}, {"before", q.Before}, {"after", q.After}} {
+		if field.v != "" {
+			v.Set(field.k, field.v)
 		}
 	}
-	for _, s := range sessions {
-		v.Sessions = append(v.Sessions, s)
+	if q.Session != "" {
+		v.Set("event_page", strconv.Itoa(max(q.EventPage, 1)))
 	}
-	sort.Slice(v.Sessions, func(i, j int) bool { return v.Sessions[i].End.After(v.Sessions[j].End) })
-	v.Total = len(v.Sessions)
-	v.Unique = len(ips)
-	if len(v.Sessions) > 50 {
-		v.Sessions = v.Sessions[:50]
-	}
-	v.Rooms = counts(rooms, 256)
-	v.TopCommands = counts(commands, 15)
-	return v, nil
+	return "?" + v.Encode()
+}
+func browseURL(q history.Query, before, after string) string {
+	q.Before, q.After = before, after
+	q.Session = ""
+	return queryURL(q)
+}
+func sessionURL(q history.Query, id string) string {
+	q.Session = id
+	q.EventPage = 1
+	return queryURL(q)
+}
+func eventsURL(q history.Query, page int) string { q.EventPage = page; return queryURL(q) }
+func hostURL(q history.Query, ip string) string {
+	q.View = "sessions"
+	q.Host = ip
+	q.Session = ""
+	q.Before = ""
+	q.After = ""
+	return queryURL(q)
 }
 func visible(text string) string {
 	var b strings.Builder
@@ -296,32 +305,12 @@ func visible(text string) string {
 	}
 	return b.String()
 }
-func counts(m map[string]int, limit int) []Count {
-	var c []Count
-	for name, value := range m {
-		c = append(c, Count{name, value})
-	}
-	sort.Slice(c, func(i, j int) bool {
-		if c[i].Value == c[j].Value {
-			return c[i].Name < c[j].Name
-		}
-		return c[i].Value > c[j].Value
-	})
-	if len(c) > limit {
-		c = c[:limit]
-	}
-	return c
-}
 
-var page = template.Must(template.New("monitor").Funcs(template.FuncMap{"clock": func(t time.Time) string { return t.Format("Jan 02 15:04:05 UTC") }}).Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MudPot // Activity Monitor</title>
-<style>
-:root{color-scheme:dark;--bg:#0a1017;--panel:#111c27;--line:#26394a;--muted:#94aabd;--ink:#e5eff6;--green:#78e2ba}
-*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:14px/1.6 ui-monospace,Consolas,monospace;margin:0}main{max-width:1280px;margin:auto;padding:36px 24px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);padding-bottom:24px}.eyebrow{color:var(--green);font-size:12px;letter-spacing:.13em}h1{font-size:28px;margin:8px 0}h2{font-size:17px;margin:0 0 16px}p{color:var(--muted);margin:5px 0}.tag{display:inline-block;color:var(--green);border:1px solid #36664e;border-radius:5px;padding:4px 9px;align-self:start}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:24px 0}.stat,.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}.value{font-size:30px;color:var(--green)}.label{color:var(--muted);font-size:12px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}.row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:7px 0;overflow-wrap:anywhere}.sessions{padding:0}.session{border-bottom:1px solid var(--line);padding:16px 20px}.summary{display:flex;flex-wrap:wrap;gap:12px;cursor:pointer}.ip{color:var(--green)}.muted{color:var(--muted)}.status{margin-left:auto;color:#e8c88e}.events{background:#09131c;padding:12px;margin-top:12px;border-radius:5px;max-height:350px;overflow:auto}.event{display:grid;grid-template-columns:170px 120px 1fr;gap:10px;padding:4px 0;overflow-wrap:anywhere}.empty{padding:30px;color:var(--muted)}footer{color:var(--muted);padding:24px 0}.notice{border-left:3px solid #e8c88e;padding:10px 15px;margin-bottom:24px;color:#e8c88e}@media(max-width:760px){main{padding:20px 12px}.stats{grid-template-columns:repeat(2,1fr)}.columns{grid-template-columns:1fr}header{display:block}.event{grid-template-columns:1fr}.status{margin-left:0}h1{font-size:23px}}
-summary{list-style:none}summary::-webkit-details-marker{display:none}.summary::before{content:'▸';color:var(--muted)}details[open] .summary::before{content:'▾'}
-</style></head><body><main><header><div><div class="eyebrow">GREY SECTOR / OPERATIONS</div><h1>MudPot station monitor</h1><p>Connection history, adventure progress, and recovery activity.</p></div><span class="tag">READ ONLY</span></header>
-<section class="stats" aria-label="Overview"><div class="stat"><div class="value">{{.Total}}</div><div class="label">Observed sessions</div></div><div class="stat"><div class="value">{{.Unique}}</div><div class="label">Unique addresses</div></div><div class="stat"><div class="value">{{.Commands}}</div><div class="label">Commands</div></div><div class="stat"><div class="value">{{.Victories}}</div><div class="label">Vault recoveries</div></div><div class="stat"><div class="value">{{.Limited}}</div><div class="label">Resource limits</div></div></section>
-{{if .Sampled}}<p class="notice">Showing a bounded sample from the latest logs. Counts describe this sample, not lifetime totals.</p>{{end}}{{if .Invalid}}<p class="notice">{{.Invalid}} incomplete or invalid log records skipped.</p>{{end}}
-<div class="columns"><section class="panel"><h2>Room traffic</h2>{{range .Rooms}}<div class="row"><span>{{.Name}}</span><span>{{.Value}}</span></div>{{else}}<p>No room transitions yet.</p>{{end}}</section><section class="panel"><h2>Top commands</h2>{{range .TopCommands}}<div class="row"><span>{{.Name}}</span><span>{{.Value}}</span></div>{{else}}<p>No commands yet.</p>{{end}}</section></div>
-<h2>Recent sessions</h2><section class="panel sessions">{{range .Sessions}}<details class="session"><summary><span class="summary"><span class="ip">{{.IP}}</span><span>{{.Protocol}} :{{.Port}}</span><span class="muted">{{.Room}} · {{.Commands}} commands</span><span class="status">{{.Status}}</span></span></summary><p>{{clock .Start}} → {{clock .End}}{{if .User}} · user {{.User}}{{end}}</p><p class="muted">{{.ID}}</p><div class="events">{{range .Events}}<div class="event"><span class="muted">{{clock .Time}}</span><span>{{.Kind}}</span><span>{{.Text}}</span></div>{{end}}</div></details>{{else}}<p class="empty">Awaiting first contact. Start the honeypot and connect to its recovery terminal.</p>{{end}}</section>
-<footer>Updated {{clock .Updated}} · Last 50 sessions, up to 40 events each · Reload to refresh</footer></main></body></html>`))
+//go:embed dashboard.html
+var pageHTML string
+
+var page = template.Must(template.New("monitor").Funcs(template.FuncMap{
+	"clock":   func(t time.Time) string { return t.Format("Jan 02 2006 15:04:05 UTC") },
+	"visible": visible, "clean": adventure.Clean, "join": func(items []string) string { return strings.Join(items, ", ") }, "route": func(items []string) string { return strings.Join(items, " → ") },
+	"browseURL": browseURL, "sessionURL": sessionURL, "eventsURL": eventsURL, "hostURL": hostURL, "prev": func(n int) int { return n - 1 }, "next": func(n int) int { return n + 1 },
+}).Parse(pageHTML))

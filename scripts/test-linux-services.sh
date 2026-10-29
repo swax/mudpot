@@ -47,6 +47,7 @@ cleanup() {
     rm -f /etc/mudpot/{honeypot,dashboard}.env
     rm -f /var/lib/mudpot/state/{ssh_host_ed25519,tls_key.pem,tls_cert.pem}
     rm -f /var/log/mudpot/events.jsonl /var/log/mudpot/events.jsonl.1
+    rm -f /var/log/mudpot/events.jsonl.sqlite /var/log/mudpot/events.jsonl.sqlite-journal
     for dir in /opt/mudpot/adventures/grey-sector /opt/mudpot/adventures /opt/mudpot /etc/mudpot /var/lib/mudpot/state /var/lib/mudpot /var/log/mudpot; do
         if [[ -d $dir ]]; then rmdir "$dir" || status=1; fi
     done

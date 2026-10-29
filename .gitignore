@@ -7,6 +7,11 @@ tls_key.pem
 *.log
 *.jsonl
 *.jsonl.1
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.mmdb
 .tools/
 bin/
 data/

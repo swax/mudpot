@@ -38,3 +38,70 @@ The run's detailed reports are retained locally in `.tools/linux/report/`:
 `service-properties.txt`, `security.txt`, and `journal.txt`. Default runs of the
 checked-in test use `.tools/linux-services/`. See [deployment](deployment.md)
 for prerequisites and reproduction commands.
+
+## Persistent session history
+
+Verified on 2026-10-28 using the local Ubuntu/systemd test environment and Go
+1.27.3. The full Go race suite passed, including history retained after multiple
+rotations and deletion of both JSONL files, restart persistence, imports beyond
+the former 2 MiB sample, import deduplication, browsing more than 2,000 sessions,
+literal search and activity filters, and complete event pagination.
+
+The real service installation test also passed with the SQLite history store:
+the file has mode 0640, the separate dashboard account can read it but cannot
+write it, and the original completed adventure remains searchable after a
+forced crash, live log rotation, and repeat deployment. Race-instrumented
+services handled concurrent clients and drained cleanly on SIGTERM. Test-created
+services, files, and accounts were removed successfully. Reports are retained
+locally in `.tools/history-linux-services/`.
+
+Windows `go test ./...`, `go vet ./...`, and the browser checks for search,
+activity filters, session navigation, and complete session details passed too.
+`govulncheck ./...` reported no vulnerabilities affecting called code.
+
+## Retention and player reports
+
+Verified on 2026-10-28 after adding the 7-day routine / 180-day gameplay detail
+policy. Windows tests and the Linux race suite passed. Coverage includes genuine
+gameplay classification, host grouping, furthest milestones despite backtracking,
+permanent counters and summaries after expiry, promotion of early session events,
+bounded cleanup, retained-event pagination, imports that cannot resurrect pruned
+detail, legacy migrations across UTC dates, and indexed cursor/prefix queries.
+
+The isolated systemd service suite passed with the new low-priority CPU budgets
+(20% of one core for the honeypot, 10% for the dashboard). It verified quota and
+Nice settings, database permissions, default Players and progress reports,
+progress search, crash/restart, log rotation, repeat deployment, concurrent
+instrumented services, and clean shutdown. Reports are in
+`.tools/retention-linux-services/`.
+
+`BenchmarkReports` compared 500 gameplay hosts with zero versus 100,000 routine
+session rows on the local Windows Intel Core i9-14900HX. Player queries took
+about 1.24 ms versus 1.17 ms; statistics queries took 0.92 ms versus 0.81 ms.
+Player queries allocated about 93 KiB per operation in both cases. These are
+local query measurements, not latency guarantees for another host; they confirm
+the normal report avoids work proportional to routine connection history.
+
+Browser checks verified the default grouped report, milestone counts, prefix
+search and recovery filtering, and an expired 200-day-old transcript whose
+progress summary remains visible. Screenshots use synthetic data and are retained
+locally in `.tools/retention-preview/`.
+
+## Offline Country and ASN enrichment
+
+Verified on 2026-10-28 with the downloaded Country and ASN MMDB files kept in
+gitignored `data/geoip/`. Windows tests and Linux race tests passed, including
+IPv4/IPv6 decoding, bounded positive/negative caching, concurrent access, private
+address skipping, missing/invalid file handling, and player-only report enrichment.
+The local cached lookup benchmark measured about 50 ns with zero allocations.
+`govulncheck` found no vulnerabilities affecting called code.
+
+The existing GoAccess 1.12 renderer was tested with synthetic logs on the target
+host before activation. Restored host rows acquired country/ASN labels without
+resubmitting unchanged logs or changing request totals. Live activation then
+verified both services, the shared database file checksums, the updated renderer,
+preserved request totals, CPU limits, and the public MudPot report with GeoIP
+enabled. The database files are shared read-only at `/opt/mudpot/data/geoip/`.
+No DNS or external geolocation requests were enabled. Preparation, activation
+records, backup location, and the live screenshot are retained locally under
+`.tools/geoip-setup/`.

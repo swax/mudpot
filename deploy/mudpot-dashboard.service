@@ -13,6 +13,10 @@ Restart=on-failure
 RestartSec=5
 TimeoutStopSec=15
 UMask=0077
+Nice=10
+IOSchedulingClass=idle
+CPUQuota=10%
+Environment=GOMAXPROCS=1 GOMEMLIMIT=48MiB
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 AmbientCapabilities=

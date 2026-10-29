@@ -15,6 +15,8 @@ import (
 	"github.com/swax/mudpot/internal/adventure"
 	"github.com/swax/mudpot/internal/dashboard"
 	"github.com/swax/mudpot/internal/eventlog"
+	"github.com/swax/mudpot/internal/geoip"
+	"github.com/swax/mudpot/internal/history"
 	"github.com/swax/mudpot/internal/honeypot"
 )
 
@@ -94,7 +96,9 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		return nil
 	case "dashboard":
 		address := f.String("listen", env("MUDPOT_DASHBOARD_ADDR", "127.0.0.1:8080"), "loopback IP and port")
-		path := f.String("log", logPath, "event log to read; no write access required")
+		path := f.String("log", logPath, "event log path (locates the default history database)")
+		historyPath := f.String("history", env("MUDPOT_HISTORY", ""), "persistent session database (default: log path + .sqlite)")
+		geoIPDir := f.String("geoip-dir", env("MUDPOT_GEOIP_DIR", "data/geoip"), "local Country and ASN MMDB directory (empty disables)")
 		if err := f.Parse(args[1:]); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
 				return nil
@@ -105,7 +109,15 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 			return errors.New("unexpected arguments")
 		}
 		fmt.Fprintf(out, "Private dashboard: http://%s (loopback only)\n", *address)
-		return dashboard.Serve(ctx, dashboard.Config{Address: *address, LogPath: *path, Token: env("MUDPOT_DASHBOARD_TOKEN", "")})
+		resolver, err := geoip.Open(*geoIPDir)
+		if err != nil {
+			return fmt.Errorf("GeoIP databases: %w", err)
+		}
+		defer resolver.Close()
+		if resolver != nil {
+			fmt.Fprintln(out, "Offline Country/ASN lookups enabled from", *geoIPDir)
+		}
+		return dashboard.Serve(ctx, dashboard.Config{Address: *address, LogPath: *path, HistoryPath: *historyPath, Token: env("MUDPOT_DASHBOARD_TOKEN", ""), GeoIP: resolver})
 	case "serve":
 		cfg := honeypot.Defaults()
 		dir := f.String("adventure", env("MUDPOT_ADVENTURE", ""), "adventure directory (empty uses embedded starter)")
@@ -114,6 +126,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		tls := f.String("tls", env("MUDPOT_TLS_PORT", ""), "comma-separated TLS addresses or ports; empty disables")
 		f.StringVar(&cfg.StateDir, "state", env("MUDPOT_STATE", "data/state"), "private host-key and TLS directory")
 		path := f.String("log", logPath, "JSONL event log (10 MiB, one rotated backup)")
+		historyPath := f.String("history", env("MUDPOT_HISTORY", ""), "persistent session database (default: log path + .sqlite)")
 		f.IntVar(&cfg.MaxConnections, "max-connections", cfg.MaxConnections, "maximum connections, including handshakes")
 		f.IntVar(&cfg.PerIP, "per-ip", cfg.PerIP, "maximum concurrent connections per IP")
 		f.IntVar(&cfg.CommandsPerMinute, "commands-per-minute", cfg.CommandsPerMinute, "per-session command budget per minute")
@@ -147,7 +160,22 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		if err = cfg.Validate(); err != nil {
 			return err
 		}
-		logger, err := eventlog.Open(*path, 10*1024*1024)
+		if *historyPath == "" {
+			*historyPath = history.Path(*path)
+		}
+		store, err := history.Open(*historyPath)
+		if err != nil {
+			return fmt.Errorf("session history: %w", err)
+		}
+		defer store.Close()
+		invalid, err := store.Import(ctx, *path)
+		if err != nil {
+			return fmt.Errorf("import session history: %w", err)
+		}
+		if invalid > 0 {
+			fmt.Fprintf(out, "History import skipped %d incomplete or invalid log records.\n", invalid)
+		}
+		logger, err := eventlog.OpenRecorded(*path, 10*1024*1024, store)
 		if err != nil {
 			return err
 		}
@@ -162,7 +190,36 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 			fmt.Fprintf(out, "%s: %s\n", protocol, strings.Join(bound[protocol], ", "))
 		}
 		fmt.Fprintln(out, "Adventure:", w.Title)
-		err = server.Serve(ctx)
+		serveCtx, cancelServe := context.WithCancel(ctx)
+		defer cancelServe()
+		maintenanceDone := make(chan struct{})
+		maintenanceError := make(chan error, 1)
+		go func() {
+			defer close(maintenanceDone)
+			if e := store.Maintain(serveCtx); e != nil {
+				maintenanceError <- e
+				cancelServe()
+			}
+		}()
+		err = server.Serve(serveCtx)
+		cancelServe()
+		<-maintenanceDone
+		select {
+		case e := <-maintenanceError:
+			if err == nil {
+				err = fmt.Errorf("history retention: %w", e)
+			}
+		default:
+		}
+		logger.Close()
+		// Surface failures while draining the final batch, too.
+		select {
+		case logErr := <-logger.Errors():
+			if err == nil {
+				err = logErr
+			}
+		default:
+		}
 		if dropped := logger.Dropped(); dropped > 0 {
 			fmt.Fprintf(out, "Log queue dropped %d events under load.\n", dropped)
 		}

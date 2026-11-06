@@ -3,7 +3,7 @@ module github.com/swax/mudpot
 go 1.26.0
 
 require (
-	github.com/oschwald/maxminddb-golang/v2 v2.8.0
+	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	golang.org/x/crypto v0.58.0
 	modernc.org/sqlite v1.61.0
 )
